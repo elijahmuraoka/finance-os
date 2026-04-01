@@ -8,8 +8,10 @@
  *   finance categories [--json]
  *   finance spending [--month YYYY-MM] [--json]
  *   finance budget [--month YYYY-MM] [--json]
+ *   finance budget set <category-id> <amount> [--month YYYY-MM] [--confirm]
  *   finance networth [--json]
  *   finance snapshot [--print]
+ *   finance doctor [--json]
  *   finance set-category <tx-id> <category-id> [--confirm]
  *   finance mark-reviewed <tx-id> [--confirm]
  *   finance set-notes <tx-id> <notes> [--confirm]
@@ -24,11 +26,13 @@
  */
 
 import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import { getAccounts, getAccountBalances, formatAccountsTable } from './primitives/accounts';
 import { getCryptoSnapshot } from './crypto/index';
 import { createKrakenClient } from './crypto/kraken';
 import { createGeminiClient } from './crypto/gemini';
-import { getAllOnchainBalances } from './crypto/onchain';
+import { getAllOnchainBalances, getSolBalance } from './crypto/onchain';
 import { getKrakenConfig, getGeminiConfig, getOnchainConfig } from './crypto/config';
 import {
   getTransactions,
@@ -45,9 +49,8 @@ import {
   formatCurrentNetworth,
 } from './primitives/networth';
 import { buildFinanceSnapshot, getSnapshotPath } from './context-loader';
-import { setCategory, markReviewed, setNotes, bulkMarkReviewed } from './primitives/write';
+import { setCategory, markReviewed, setNotes, bulkMarkReviewed, setBudget } from './primitives/write';
 
-// Parse argv after the command name
 function parseArgs(argv: string[]): { flags: Record<string, string | boolean>; positional: string[] } {
   const flags: Record<string, string | boolean> = {};
   const positional: string[] = [];
@@ -83,6 +86,13 @@ function outputText(text: string): void {
 function fatal(message: string): never {
   process.stderr.write(`Error: ${message}\n`);
   process.exit(1);
+}
+
+function getCurrentMonth(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
 }
 
 async function cmdAccounts(flags: Record<string, string | boolean>): Promise<void> {
@@ -150,14 +160,36 @@ async function cmdSpending(flags: Record<string, string | boolean>): Promise<voi
   }
 }
 
-async function cmdBudget(flags: Record<string, string | boolean>): Promise<void> {
-  const month = flags['month'] as string | undefined;
+async function cmdBudget(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  const { flags: parsedFlags, positional } = parseArgs(rest);
+  const mergedFlags = { ...flags, ...parsedFlags };
+  const subcommand = positional[0];
+
+  if (subcommand === 'set') {
+    const categoryId = positional[1];
+    const amountRaw = positional[2];
+    if (!categoryId || !amountRaw) {
+      fatal('Usage: finance budget set <category-id> <amount> [--month YYYY-MM] [--confirm]');
+    }
+
+    const amount = Number(amountRaw);
+    if (!Number.isFinite(amount)) {
+      fatal(`Invalid amount: ${amountRaw}`);
+    }
+
+    const month = (mergedFlags['month'] as string | undefined) ?? getCurrentMonth();
+    const confirm = !!mergedFlags['confirm'];
+    await setBudget(categoryId, amount, month, confirm);
+    return;
+  }
+
+  const month = mergedFlags['month'] as string | undefined;
   const [budgets, monthly] = await Promise.all([
     getBudgetStatus(month),
     getMonthlySpend(month),
   ]);
 
-  if (flags['json']) {
+  if (mergedFlags['json']) {
     outputJson({ budgets, monthly });
   } else {
     outputText(formatMonthlySpendSummary(monthly));
@@ -227,7 +259,6 @@ async function cmdSetNotes(
   flags: Record<string, string | boolean>
 ): Promise<void> {
   const txId = positional[0];
-  // notes can contain spaces, so join remaining positional args
   const notes = positional.slice(1).join(' ') || (flags['notes'] as string);
   if (!txId || !notes) {
     fatal('Usage: finance set-notes <tx-id> <notes> [--confirm]');
@@ -249,7 +280,212 @@ async function cmdMarkAllReviewed(flags: Record<string, string | boolean>): Prom
   await bulkMarkReviewed(ids, confirm);
 }
 
-// ── Crypto commands ────────────────────────────────────────────────────────
+type DoctorCheck = {
+  key: string;
+  label: string;
+  ok: boolean;
+  message: string;
+  meta?: Record<string, unknown>;
+};
+
+function formatDoctorLine(check: DoctorCheck): string {
+  const symbol = check.ok ? '✓' : '✗';
+  return `${symbol} ${check.label.padEnd(16)} ${check.message}`;
+}
+
+async function runDoctor(): Promise<DoctorCheck[]> {
+  const checks: DoctorCheck[] = [];
+
+  try {
+    const accounts = await getAccounts();
+    checks.push({
+      key: 'copilot',
+      label: 'Copilot Money',
+      ok: true,
+      message: `authenticated (${accounts.length} accounts)`,
+      meta: { accounts: accounts.length },
+    });
+  } catch (err) {
+    checks.push({
+      key: 'copilot',
+      label: 'Copilot Money',
+      ok: false,
+      message: `${(err as Error).message}`,
+    });
+  }
+
+  const refreshTokenPath = path.join(os.homedir(), '.openclaw', 'secrets', 'copilot-refresh-token');
+  try {
+    const refreshToken = fs.readFileSync(refreshTokenPath, 'utf8').trim();
+    checks.push({
+      key: 'firebase-refresh',
+      label: 'Firebase token',
+      ok: Boolean(refreshToken),
+      message: refreshToken ? 'refresh token present' : 'refresh token file is empty',
+      meta: { path: refreshTokenPath },
+    });
+  } catch (err) {
+    checks.push({
+      key: 'firebase-refresh',
+      label: 'Firebase token',
+      ok: false,
+      message: `missing refresh token at ${refreshTokenPath}`,
+      meta: { error: (err as Error).message },
+    });
+  }
+
+  const krakenCfg = getKrakenConfig();
+  if (!krakenCfg.configured) {
+    checks.push({
+      key: 'kraken',
+      label: 'Kraken',
+      ok: false,
+      message: 'keys not configured',
+    });
+  } else {
+    try {
+      const balances = await createKrakenClient()!.getBalances();
+      checks.push({
+        key: 'kraken',
+        label: 'Kraken',
+        ok: true,
+        message: `${balances.length} assets`,
+        meta: { count: balances.length },
+      });
+    } catch (err) {
+      checks.push({
+        key: 'kraken',
+        label: 'Kraken',
+        ok: false,
+        message: (err as Error).message,
+      });
+    }
+  }
+
+  const geminiCfg = getGeminiConfig();
+  if (!geminiCfg.configured) {
+    checks.push({
+      key: 'gemini',
+      label: 'Gemini',
+      ok: false,
+      message: 'keys not configured',
+    });
+  } else {
+    try {
+      const balances = await createGeminiClient()!.getBalances();
+      checks.push({
+        key: 'gemini',
+        label: 'Gemini',
+        ok: true,
+        message: `${balances.length} assets`,
+        meta: { count: balances.length },
+      });
+    } catch (err) {
+      checks.push({
+        key: 'gemini',
+        label: 'Gemini',
+        ok: false,
+        message: (err as Error).message,
+      });
+    }
+  }
+
+  const onchainCfg = getOnchainConfig();
+  if (onchainCfg.ethAddresses.length === 0) {
+    checks.push({
+      key: 'debank',
+      label: 'DeBank (EVM)',
+      ok: false,
+      message: 'no ETH address configured',
+    });
+  } else {
+    const address = onchainCfg.ethAddresses[0];
+    const cachePath = path.join(os.homedir(), '.openclaw', 'cache', 'finance', `debank-${address.toLowerCase()}.json`);
+    const cacheExists = fs.existsSync(cachePath);
+    let cacheAgeMinutes: number | null = null;
+    if (cacheExists) {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(cachePath, 'utf8')) as { fetchedAt?: number; tokens?: unknown[] };
+        if (typeof parsed.fetchedAt === 'number') {
+          cacheAgeMinutes = Math.floor((Date.now() - parsed.fetchedAt) / 60000);
+        }
+      } catch {
+        cacheAgeMinutes = null;
+      }
+    }
+
+    try {
+      const snapshot = await getAllOnchainBalances();
+      const wallet = snapshot.ethereum.find((entry) => entry.address.toLowerCase() === address.toLowerCase());
+      const chainCount = wallet ? 1 + (wallet.extraChains?.length ?? 0) : 0;
+      const prefix = cacheAgeMinutes !== null && cacheAgeMinutes <= 30 ? `cached (${cacheAgeMinutes} min old)` : 'reachable';
+      checks.push({
+        key: 'debank',
+        label: 'DeBank (EVM)',
+        ok: Boolean(wallet),
+        message: wallet ? `${prefix} — ${chainCount} address${chainCount === 1 ? '' : 'es'}` : 'no wallet data returned',
+        meta: { address, cachePath, cacheAgeMinutes, chainCount },
+      });
+    } catch (err) {
+      checks.push({
+        key: 'debank',
+        label: 'DeBank (EVM)',
+        ok: false,
+        message: (err as Error).message,
+      });
+    }
+  }
+
+  if (!onchainCfg.solAddress) {
+    checks.push({
+      key: 'solana',
+      label: 'Solana RPC',
+      ok: false,
+      message: 'no SOL address configured',
+    });
+  } else {
+    try {
+      await getSolBalance(onchainCfg.solAddress);
+      checks.push({
+        key: 'solana',
+        label: 'Solana RPC',
+        ok: true,
+        message: 'reachable',
+        meta: { address: onchainCfg.solAddress },
+      });
+    } catch (err) {
+      checks.push({
+        key: 'solana',
+        label: 'Solana RPC',
+        ok: false,
+        message: (err as Error).message,
+      });
+    }
+  }
+
+  return checks;
+}
+
+async function cmdDoctor(flags: Record<string, string | boolean>): Promise<void> {
+  const checks = await runDoctor();
+  const passed = checks.every((check) => check.ok);
+
+  if (flags['json']) {
+    outputJson({
+      ok: passed,
+      checks,
+    });
+    return;
+  }
+
+  outputText('finance-os doctor');
+  outputText('─────────────────────────────────');
+  for (const check of checks) {
+    outputText(formatDoctorLine(check));
+  }
+  outputText('─────────────────────────────────');
+  outputText(passed ? 'All checks passed' : 'Some checks failed');
+}
 
 function fmtUsd(n: number): string {
   return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -260,7 +496,6 @@ function fmtAmount(n: number, decimals = 6): string {
 }
 
 async function cmdCrypto(subArgs: string[]): Promise<void> {
-  // The first non-flag arg is the subcommand; flags can appear anywhere
   const { flags, positional } = parseArgs(subArgs);
   const sub = positional[0] ?? '';
   const json = !!flags['json'];
@@ -387,7 +622,6 @@ async function cmdCrypto(subArgs: string[]): Promise<void> {
 
     case '':
     default: {
-      // Full snapshot
       try {
         const snapshot = await getCryptoSnapshot();
         if (json) {
@@ -396,7 +630,6 @@ async function cmdCrypto(subArgs: string[]): Promise<void> {
           outputText(`\nCrypto Holdings — ${snapshot.fetchedAt}`);
           outputText(`Total: ${fmtUsd(snapshot.summary.totalUsd)}\n`);
 
-          // Kraken
           if (snapshot.exchanges.kraken) {
             outputText('Kraken:');
             for (const b of snapshot.exchanges.kraken) {
@@ -406,7 +639,6 @@ async function cmdCrypto(subArgs: string[]): Promise<void> {
             outputText(`Kraken: ${snapshot.exchanges.krakenError}`);
           }
 
-          // Gemini
           if (snapshot.exchanges.gemini) {
             outputText('\nGemini:');
             for (const b of snapshot.exchanges.gemini) {
@@ -416,7 +648,6 @@ async function cmdCrypto(subArgs: string[]): Promise<void> {
             outputText(`Gemini: ${snapshot.exchanges.geminiError}`);
           }
 
-          // Wallet
           if (snapshot.onchain?.ethereum && snapshot.onchain.ethereum.length > 0) {
             for (const wallet of snapshot.onchain.ethereum) {
               outputText(`\nWallet (ETH ${wallet.address.slice(0, 8)}...):`);
@@ -467,8 +698,10 @@ async function main(): Promise<void> {
         '  finance categories [--json]',
         '  finance spending [--month YYYY-MM] [--json]',
         '  finance budget [--month YYYY-MM] [--json]',
+        '  finance budget set <category-id> <amount> [--month YYYY-MM] [--confirm]',
         '  finance networth [--history] [--json]',
         '  finance snapshot [--print]',
+        '  finance doctor [--json]',
         '',
         'Crypto commands:',
         '  finance crypto [--json]              — full snapshot (all sources)',
@@ -510,13 +743,16 @@ async function main(): Promise<void> {
         await cmdSpending(flags);
         break;
       case 'budget':
-        await cmdBudget(flags);
+        await cmdBudget(rest, flags);
         break;
       case 'networth':
         await cmdNetworth(flags);
         break;
       case 'snapshot':
         await cmdSnapshot(flags);
+        break;
+      case 'doctor':
+        await cmdDoctor(flags);
         break;
       case 'set-category':
         await cmdSetCategory(positional, flags);

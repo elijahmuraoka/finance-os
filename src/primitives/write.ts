@@ -11,7 +11,11 @@
  */
 
 import { getClient } from '../client';
-import { EDIT_TRANSACTION_MUTATION, BULK_EDIT_TRANSACTIONS_MUTATION } from '../queries';
+import {
+  EDIT_TRANSACTION_MUTATION,
+  BULK_EDIT_TRANSACTIONS_MUTATION,
+  SET_BUDGET_MUTATION,
+} from '../queries';
 import { getTransactions } from './transactions';
 
 // ─── Shared helpers ──────────────────────────────────────────────────────────
@@ -19,6 +23,12 @@ import { getTransactions } from './transactions';
 function dryRun(message: string): void {
   process.stdout.write(`[dry-run] ${message}\n`);
   process.stdout.write('  (Pass --confirm to execute this mutation)\n');
+}
+
+function validateBudgetMonth(month: string): void {
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    throw new Error(`Invalid month '${month}'. Expected YYYY-MM.`);
+  }
 }
 
 interface TransactionMeta {
@@ -136,6 +146,23 @@ interface BulkEditResult {
   };
 }
 
+interface SetBudgetResult {
+  setCategoryBudget: {
+    category: {
+      id: string;
+      name: string;
+    };
+    budget: {
+      current: {
+        amount: number;
+        resolvedAmount: number;
+        month: string;
+        id: string;
+      } | null;
+    } | null;
+  };
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -208,9 +235,6 @@ export async function bulkMarkReviewed(
 
   const input: BulkEditInput = { isReviewed: true };
 
-  // BulkEditTransactions takes a filter, not explicit IDs.
-  // We pass each ID individually to avoid sending unknown filter shapes.
-  // TODO: if Copilot exposes an `ids` filter field, use it for one round-trip.
   let succeeded = 0;
   let failed = 0;
 
@@ -244,5 +268,50 @@ export async function bulkMarkReviewed(
 
   process.stdout.write(
     `Bulk mark reviewed: ${succeeded} updated, ${failed} failed (of ${txIds.length} total)\n`
+  );
+}
+
+/**
+ * Set a budget amount for a category/month.
+ */
+export async function setBudget(
+  categoryId: string,
+  amount: number,
+  month: string,
+  confirm: boolean
+): Promise<void> {
+  validateBudgetMonth(month);
+
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new Error(`Invalid budget amount '${amount}'. Expected a non-negative number.`);
+  }
+
+  if (!confirm) {
+    dryRun(`Would set budget for category ${categoryId} to $${amount.toFixed(2)} for ${month}`);
+    return;
+  }
+
+  const result = await getClient().graphql<SetBudgetResult>(
+    'SetBudgetAmount',
+    SET_BUDGET_MUTATION,
+    {
+      categoryId,
+      month,
+      input: {
+        amount,
+      },
+    }
+  );
+
+  const updated = result?.setCategoryBudget;
+  const applied = updated?.budget?.current;
+  if (!updated?.category || !applied) {
+    throw new Error('SetBudgetAmount returned no budget data. Mutation may have failed.');
+  }
+
+  process.stdout.write(
+    `✓ Updated budget ${updated.category.name} (${updated.category.id})\n` +
+      `  month: ${applied.month}\n` +
+      `  amount: $${(applied.resolvedAmount ?? applied.amount ?? amount).toFixed(2)}\n`
   );
 }

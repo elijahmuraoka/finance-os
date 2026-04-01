@@ -5,7 +5,6 @@
  * CopilotClient.graphql is mocked at the module boundary.
  */
 
-// Mock the client module before any imports
 jest.mock('../src/client', () => {
   const mockGraphql = jest.fn();
   const mockGetClient = jest.fn(() => ({ graphql: mockGraphql }));
@@ -25,7 +24,6 @@ jest.mock('../src/client', () => {
 import * as path from 'path';
 import * as fs from 'fs';
 
-// Load fixtures (safe: these are local files we control, not external input)
 const fixturesDir = path.join(__dirname, 'fixtures');
 
 function loadFixture(name: string): unknown {
@@ -34,25 +32,21 @@ function loadFixture(name: string): unknown {
 }
 
 const accountsFixture = loadFixture('accounts.json') as { accounts: unknown[] };
-const transactionsFixture = loadFixture('transactions.json') as { transactions: { edges: unknown[]; pageInfo: unknown } };
+const emptyAccountsFixture = loadFixture('empty-accounts.json') as { accounts: unknown[] };
+const transactionsFixture = loadFixture('transactions.json') as { transactions: { edges?: unknown[]; pageInfo?: unknown } };
 const categoriesFixture = loadFixture('categories.json') as { categories: unknown[] };
 const networthFixture = loadFixture('networth.json') as { networthHistory: unknown[] };
+const emptyNetworthFixture = loadFixture('empty-networth.json') as { networthHistory: unknown[] };
 const monthlySpendFixture = loadFixture('monthly-spend.json') as { monthlySpending: unknown[] };
 
-// Get mock reference after module initialization
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const clientModule = require('../src/client');
 const mockGraphql: jest.Mock = clientModule.__mockGraphql;
 
-// Reset mock between tests
 beforeEach(() => {
   mockGraphql.mockReset();
 });
 
-// ─── Accounts ────────────────────────────────────────────────────────────────
-
 describe('accounts', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { getAccounts, getAccountBalances } = require('../src/primitives/accounts');
 
   test('getAccounts() returns array with expected shape', async () => {
@@ -60,7 +54,6 @@ describe('accounts', () => {
 
     const accounts = await getAccounts();
 
-    // Should exclude the closed account (acct-004)
     expect(Array.isArray(accounts)).toBe(true);
     expect(accounts.length).toBe(3);
 
@@ -97,6 +90,13 @@ describe('accounts', () => {
     expect(accounts).toEqual([]);
   });
 
+  test('getAccounts() handles empty accounts response', async () => {
+    mockGraphql.mockResolvedValueOnce(emptyAccountsFixture);
+
+    const accounts = await getAccounts();
+    expect(accounts).toEqual([]);
+  });
+
   test('getAccountBalances() returns simplified sorted array', async () => {
     mockGraphql.mockResolvedValueOnce(accountsFixture);
 
@@ -110,7 +110,6 @@ describe('accounts', () => {
     expect(first).toHaveProperty('balance');
     expect(first).toHaveProperty('type');
     expect(first).toHaveProperty('subType');
-    // Should not have institution-specific fields
     expect(first).not.toHaveProperty('institutionId');
     expect(first).not.toHaveProperty('mask');
   });
@@ -125,10 +124,7 @@ describe('accounts', () => {
   });
 });
 
-// ─── Transactions ─────────────────────────────────────────────────────────────
-
 describe('transactions', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { getTransactions, getUnreviewed } = require('../src/primitives/transactions');
 
   test('getTransactions() returns page with transactions array', async () => {
@@ -167,12 +163,28 @@ describe('transactions', () => {
     expect(page.pageInfo.hasNextPage).toBe(false);
   });
 
+  test('getTransactions() handles malformed response missing edges', async () => {
+    mockGraphql.mockResolvedValueOnce({
+      transactions: {
+        pageInfo: {
+          hasNextPage: false,
+          endCursor: null,
+          hasPreviousPage: false,
+          startCursor: null,
+        },
+      },
+    });
+
+    const page = await getTransactions();
+    expect(page.transactions).toEqual([]);
+    expect(page.pageInfo.hasNextPage).toBe(false);
+  });
+
   test('getUnreviewed() returns only unreviewed transactions', async () => {
-    // Filter fixture to unreviewed
     const unreviewedFixture = {
       transactions: {
         ...transactionsFixture.transactions,
-        edges: transactionsFixture.transactions.edges.filter(
+        edges: (transactionsFixture.transactions.edges ?? []).filter(
           (e: unknown) => !(e as { node: { isReviewed: boolean } }).node.isReviewed
         ),
       },
@@ -187,8 +199,7 @@ describe('transactions', () => {
   });
 
   test('getUnreviewed() returns correct count from fixture', async () => {
-    // 3 unreviewed in fixture: tx-002, tx-004, tx-005
-    const unreviewedEdges = transactionsFixture.transactions.edges.filter(
+    const unreviewedEdges = (transactionsFixture.transactions.edges ?? []).filter(
       (e: unknown) => !(e as { node: { isReviewed: boolean } }).node.isReviewed
     );
     const unreviewedFixture = {
@@ -204,10 +215,7 @@ describe('transactions', () => {
   });
 });
 
-// ─── Categories ───────────────────────────────────────────────────────────────
-
 describe('categories', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { getCategories, getSpendingByCategory } = require('../src/primitives/categories');
 
   test('getCategories() returns array with expected shape', async () => {
@@ -215,7 +223,6 @@ describe('categories', () => {
 
     const categories = await getCategories();
     expect(Array.isArray(categories)).toBe(true);
-    // 5 top-level + 1 child = 6 total
     expect(categories.length).toBe(6);
 
     const first = categories[0];
@@ -230,7 +237,7 @@ describe('categories', () => {
 
     const categories = await getCategories();
     const children = categories.filter((c: { parentId?: string }) => c.parentId);
-    expect(children.length).toBe(1); // cat-uber under cat-transport
+    expect(children.length).toBe(1);
     expect(children[0].parentId).toBe('cat-transport');
     expect(children[0].name).toBe('Rideshare');
   });
@@ -254,7 +261,6 @@ describe('categories', () => {
     expect(first).toHaveProperty('categoryName');
     expect(first).toHaveProperty('actual');
     expect(first).toHaveProperty('month');
-    // budgeted may be null
     expect('budgeted' in first).toBe(true);
     expect('remaining' in first).toBe(true);
   });
@@ -263,17 +269,13 @@ describe('categories', () => {
     mockGraphql.mockResolvedValueOnce(categoriesFixture);
 
     const spending = await getSpendingByCategory('2026-03');
-    // All entries should have the requested month
     for (const s of spending) {
       expect(s.month).toBe('2026-03');
     }
   });
 });
 
-// ─── Budgets ──────────────────────────────────────────────────────────────────
-
 describe('budgets', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { getBudgetStatus, getMonthlySpend } = require('../src/primitives/budgets');
 
   test('getBudgetStatus() returns per-category status', async () => {
@@ -297,7 +299,6 @@ describe('budgets', () => {
     mockGraphql.mockResolvedValueOnce(categoriesFixture);
 
     const budgets = await getBudgetStatus('2026-03');
-    // Dining Out: $180 spent vs $150 budget = over budget
     const dining = budgets.find((b: { categoryName: string }) => b.categoryName === 'Dining Out');
     expect(dining).toBeDefined();
     expect(dining.isOverBudget).toBe(true);
@@ -308,7 +309,6 @@ describe('budgets', () => {
     mockGraphql.mockResolvedValueOnce(categoriesFixture);
 
     const budgets = await getBudgetStatus('2026-03');
-    // Groceries: $250 spent vs $300 budget = under budget
     const groceries = budgets.find((b: { categoryName: string }) => b.categoryName === 'Groceries');
     expect(groceries).toBeDefined();
     expect(groceries.isOverBudget).toBe(false);
@@ -319,9 +319,26 @@ describe('budgets', () => {
     mockGraphql.mockResolvedValueOnce(categoriesFixture);
 
     const budgets = await getBudgetStatus('2026-03');
-    // Income is isExcluded=true
     const income = budgets.find((b: { categoryName: string }) => b.categoryName === 'Income');
     expect(income).toBeUndefined();
+  });
+
+  test('getBudgetStatus() returns empty array when no budget is set', async () => {
+    mockGraphql.mockResolvedValueOnce({
+      categories: [
+        {
+          id: 'cat-empty',
+          name: 'Empty',
+          isExcluded: false,
+          spend: { current: null, histories: [] },
+          budget: { current: null, histories: [] },
+          childCategories: [],
+        },
+      ],
+    });
+
+    const budgets = await getBudgetStatus('2026-03');
+    expect(budgets).toEqual([]);
   });
 
   test('getMonthlySpend() returns {total, month} shape', async () => {
@@ -338,16 +355,13 @@ describe('budgets', () => {
     mockGraphql.mockResolvedValueOnce(monthlySpendFixture);
 
     const spend = await getMonthlySpend('2026-03');
-    expect(spend.total).toBe(480.00);
-    expect(spend.budgeted).toBe(625.00);
-    expect(spend.remaining).toBe(145.00);
+    expect(spend.total).toBe(480.0);
+    expect(spend.budgeted).toBe(625.0);
+    expect(spend.remaining).toBe(145.0);
   });
 });
 
-// ─── Net Worth ────────────────────────────────────────────────────────────────
-
 describe('networth', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { getCurrentNetworth, getNetworthHistory } = require('../src/primitives/networth');
 
   test('getCurrentNetworth() returns {assets, debt, net} shape', async () => {
@@ -366,13 +380,13 @@ describe('networth', () => {
 
     const nw = await getCurrentNetworth();
     expect(nw?.date).toBe('2026-03-01');
-    expect(nw?.assets).toBe(56000.00);
-    expect(nw?.debt).toBe(450.00);
-    expect(nw?.net).toBe(55550.00);
+    expect(nw?.assets).toBe(56000.0);
+    expect(nw?.debt).toBe(450.0);
+    expect(nw?.net).toBe(55550.0);
   });
 
   test('getCurrentNetworth() returns null on empty history', async () => {
-    mockGraphql.mockResolvedValueOnce({ networthHistory: [] });
+    mockGraphql.mockResolvedValueOnce(emptyNetworthFixture);
 
     const nw = await getCurrentNetworth();
     expect(nw).toBeNull();
@@ -391,7 +405,6 @@ describe('networth', () => {
     const history = await getNetworthHistory();
     expect(history.length).toBe(6);
 
-    // Should be sorted ascending by date
     for (let i = 1; i < history.length; i++) {
       expect(history[i].date >= history[i - 1].date).toBe(true);
     }
@@ -407,11 +420,8 @@ describe('networth', () => {
   });
 });
 
-// ─── Write Primitives ─────────────────────────────────────────────────────────
-
 describe('write primitives', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { setCategory, markReviewed, setNotes, bulkMarkReviewed } = require('../src/primitives/write');
+  const { setCategory, markReviewed, setNotes, bulkMarkReviewed, setBudget } = require('../src/primitives/write');
 
   test('setCategory() without --confirm does NOT call graphql', async () => {
     const writeSpy = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
@@ -424,7 +434,7 @@ describe('write primitives', () => {
     writeSpy.mockRestore();
   });
 
-  test('markReviewed() without --confirm does NOT call graphql', async () => {
+  test('markReviewed() without --confirm returns dry-run message without calling graphql', async () => {
     const writeSpy = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
 
     await markReviewed('tx-002', false);
@@ -446,17 +456,77 @@ describe('write primitives', () => {
     writeSpy.mockRestore();
   });
 
-  test('markReviewed() with confirm=true DOES call graphql', async () => {
-    // resolveTxMeta flow:
-    // Call 1: getTransactions({ limit: 200 }) — returns a list (tx-002 found but no itemId in mapped form)
+  test('setCategory() with confirm=true DOES call graphql with correct mutation + variables', async () => {
     mockGraphql.mockResolvedValueOnce(transactionsFixture);
-    // Call 2: direct graphql for itemId lookup (filter by id)
     mockGraphql.mockResolvedValueOnce({
       transactions: {
         edges: [{ node: { id: 'tx-002', itemId: 'item-003', accountId: 'acct-003' } }],
       },
     });
-    // Call 3: EditTransaction mutation
+    mockGraphql.mockResolvedValueOnce({
+      editTransaction: {
+        transaction: {
+          id: 'tx-002',
+          categoryId: 'cat-dining',
+          isReviewed: false,
+          userNotes: null,
+        },
+      },
+    });
+
+    await setCategory('tx-002', 'cat-dining', true);
+
+    expect(mockGraphql).toHaveBeenCalledTimes(3);
+    expect(mockGraphql).toHaveBeenLastCalledWith(
+      'EditTransaction',
+      expect.stringContaining('mutation EditTransaction'),
+      expect.objectContaining({
+        id: 'tx-002',
+        itemId: 'item-003',
+        accountId: 'acct-003',
+        input: { categoryId: 'cat-dining' },
+      })
+    );
+  });
+
+  test('setNotes() with confirm=true DOES call graphql', async () => {
+    mockGraphql.mockResolvedValueOnce(transactionsFixture);
+    mockGraphql.mockResolvedValueOnce({
+      transactions: {
+        edges: [{ node: { id: 'tx-003', itemId: 'item-004', accountId: 'acct-002' } }],
+      },
+    });
+    mockGraphql.mockResolvedValueOnce({
+      editTransaction: {
+        transaction: {
+          id: 'tx-003',
+          categoryId: null,
+          isReviewed: false,
+          userNotes: 'Budget meal',
+        },
+      },
+    });
+
+    await setNotes('tx-003', 'Budget meal', true);
+
+    expect(mockGraphql).toHaveBeenCalledTimes(3);
+    expect(mockGraphql).toHaveBeenLastCalledWith(
+      'EditTransaction',
+      expect.stringContaining('mutation EditTransaction'),
+      expect.objectContaining({
+        id: 'tx-003',
+        input: { userNotes: 'Budget meal' },
+      })
+    );
+  });
+
+  test('markReviewed() with confirm=true DOES call graphql', async () => {
+    mockGraphql.mockResolvedValueOnce(transactionsFixture);
+    mockGraphql.mockResolvedValueOnce({
+      transactions: {
+        edges: [{ node: { id: 'tx-002', itemId: 'item-003', accountId: 'acct-003' } }],
+      },
+    });
     mockGraphql.mockResolvedValueOnce({
       editTransaction: {
         transaction: {
@@ -468,12 +538,9 @@ describe('write primitives', () => {
       },
     });
 
-    const writeSpy = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
-
     await markReviewed('tx-002', true);
 
     expect(mockGraphql).toHaveBeenCalledTimes(3);
-    // Last call should be EditTransaction mutation
     expect(mockGraphql).toHaveBeenLastCalledWith(
       'EditTransaction',
       expect.any(String),
@@ -482,8 +549,6 @@ describe('write primitives', () => {
         input: expect.objectContaining({ isReviewed: true }),
       })
     );
-
-    writeSpy.mockRestore();
   });
 
   test('bulkMarkReviewed() with empty array outputs message without calling graphql', async () => {
@@ -505,6 +570,46 @@ describe('write primitives', () => {
     expect(mockGraphql).not.toHaveBeenCalled();
     expect(writeSpy).toHaveBeenCalledWith(expect.stringContaining('[dry-run]'));
     expect(writeSpy).toHaveBeenCalledWith(expect.stringContaining('3'));
+
+    writeSpy.mockRestore();
+  });
+
+  test('bulkMarkReviewed() with multiple IDs + confirm calls graphql once per transaction', async () => {
+    mockGraphql
+      .mockResolvedValueOnce({ bulkEditTransactions: { updated: [{ id: 'tx-002' }], failed: [] } })
+      .mockResolvedValueOnce({ bulkEditTransactions: { updated: [{ id: 'tx-004' }], failed: [] } })
+      .mockResolvedValueOnce({ bulkEditTransactions: { updated: [{ id: 'tx-005' }], failed: [] } });
+
+    await bulkMarkReviewed(['tx-002', 'tx-004', 'tx-005'], true);
+
+    expect(mockGraphql).toHaveBeenCalledTimes(3);
+    expect(mockGraphql).toHaveBeenNthCalledWith(
+      1,
+      'BulkEditTransactions',
+      expect.stringContaining('mutation BulkEditTransactions'),
+      expect.objectContaining({ filter: { id: 'tx-002' }, input: { isReviewed: true } })
+    );
+    expect(mockGraphql).toHaveBeenNthCalledWith(
+      2,
+      'BulkEditTransactions',
+      expect.stringContaining('mutation BulkEditTransactions'),
+      expect.objectContaining({ filter: { id: 'tx-004' }, input: { isReviewed: true } })
+    );
+    expect(mockGraphql).toHaveBeenNthCalledWith(
+      3,
+      'BulkEditTransactions',
+      expect.stringContaining('mutation BulkEditTransactions'),
+      expect.objectContaining({ filter: { id: 'tx-005' }, input: { isReviewed: true } })
+    );
+  });
+
+  test('setBudget() dry-run only prints message without calling graphql', async () => {
+    const writeSpy = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    await setBudget('cat-groceries', 300, '2026-03', false);
+
+    expect(mockGraphql).not.toHaveBeenCalled();
+    expect(writeSpy).toHaveBeenCalledWith(expect.stringContaining('Would set budget for category cat-groceries to $300.00 for 2026-03'));
 
     writeSpy.mockRestore();
   });

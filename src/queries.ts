@@ -600,6 +600,36 @@ fragment TransactionFields on Transaction {
 }
 `;
 
+export const SET_BUDGET_MUTATION = `
+mutation SetBudgetAmount($categoryId: ID!, $month: String!, $input: CategoryBudgetInput!) {
+  setCategoryBudget(categoryId: $categoryId, month: $month, input: $input) {
+    category {
+      id
+      name
+      __typename
+    }
+    budget {
+      current {
+        amount
+        resolvedAmount
+        month
+        id
+        __typename
+      }
+      histories {
+        amount
+        resolvedAmount
+        month
+        id
+        __typename
+      }
+      __typename
+    }
+    __typename
+  }
+}
+`;
+
 // ─── Feed / Feed Queries ────────────────────────────────────────────────────
 
 export const TRANSACTIONS_FEED_QUERY = `

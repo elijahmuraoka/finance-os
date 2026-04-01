@@ -1,0 +1,121 @@
+{
+  "transactions": {
+    "edges": [
+      {
+        "cursor": "cursor-1",
+        "node": {
+          "id": "tx-001",
+          "name": "Test Grocery Store",
+          "amount": 85.00,
+          "date": "2026-03-15",
+          "accountId": "acct-003",
+          "categoryId": "cat-food",
+          "isReviewed": true,
+          "isPending": false,
+          "userNotes": null,
+          "recurringId": null,
+          "type": "DEBIT",
+          "itemId": "item-003",
+          "tags": [],
+          "__typename": "Transaction"
+        },
+        "__typename": "TransactionEdge"
+      },
+      {
+        "cursor": "cursor-2",
+        "node": {
+          "id": "tx-002",
+          "name": "Test Coffee Shop",
+          "amount": 6.50,
+          "date": "2026-03-14",
+          "accountId": "acct-003",
+          "categoryId": "cat-dining",
+          "isReviewed": false,
+          "isPending": false,
+          "userNotes": null,
+          "recurringId": null,
+          "type": "DEBIT",
+          "itemId": "item-003",
+          "tags": [],
+          "__typename": "Transaction"
+        },
+        "__typename": "TransactionEdge"
+      },
+      {
+        "cursor": "cursor-3",
+        "node": {
+          "id": "tx-003",
+          "name": "Test Netflix",
+          "amount": 15.99,
+          "date": "2026-03-10",
+          "accountId": "acct-003",
+          "categoryId": "cat-subs",
+          "isReviewed": true,
+          "isPending": false,
+          "userNotes": "Monthly subscription",
+          "recurringId": "rec-001",
+          "type": "DEBIT",
+          "itemId": "item-003",
+          "tags": [
+            {
+              "id": "tag-001",
+              "name": "Recurring",
+              "colorName": "blue",
+              "__typename": "Tag"
+            }
+          ],
+          "__typename": "Transaction"
+        },
+        "__typename": "TransactionEdge"
+      },
+      {
+        "cursor": "cursor-4",
+        "node": {
+          "id": "tx-004",
+          "name": "Test Paycheck",
+          "amount": -2500.00,
+          "date": "2026-03-01",
+          "accountId": "acct-001",
+          "categoryId": "cat-income",
+          "isReviewed": false,
+          "isPending": false,
+          "userNotes": null,
+          "recurringId": "rec-002",
+          "type": "CREDIT",
+          "itemId": "item-001",
+          "tags": [],
+          "__typename": "Transaction"
+        },
+        "__typename": "TransactionEdge"
+      },
+      {
+        "cursor": "cursor-5",
+        "node": {
+          "id": "tx-005",
+          "name": "Test Pending Charge",
+          "amount": 42.00,
+          "date": "2026-03-28",
+          "accountId": "acct-003",
+          "categoryId": null,
+          "isReviewed": false,
+          "isPending": true,
+          "userNotes": null,
+          "recurringId": null,
+          "type": "DEBIT",
+          "itemId": "item-003",
+          "tags": [],
+          "__typename": "Transaction"
+        },
+        "__typename": "TransactionEdge"
+      }
+    ],
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": "cursor-5",
+      "hasPreviousPage": false,
+      "startCursor": "cursor-1",
+      "__typename": "PageInfo"
+    },
+    "__typename": "TransactionConnection"
+  }
+}

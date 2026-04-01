@@ -1,0 +1,40 @@
+{
+  "networthHistory": [
+    {
+      "date": "2025-10-01",
+      "assets": 45000.00,
+      "debt": 500.00,
+      "__typename": "NetworthFields"
+    },
+    {
+      "date": "2025-11-01",
+      "assets": 47500.00,
+      "debt": 600.00,
+      "__typename": "NetworthFields"
+    },
+    {
+      "date": "2025-12-01",
+      "assets": 50000.00,
+      "debt": 450.00,
+      "__typename": "NetworthFields"
+    },
+    {
+      "date": "2026-01-01",
+      "assets": 52000.00,
+      "debt": 400.00,
+      "__typename": "NetworthFields"
+    },
+    {
+      "date": "2026-02-01",
+      "assets": 54000.00,
+      "debt": 350.00,
+      "__typename": "NetworthFields"
+    },
+    {
+      "date": "2026-03-01",
+      "assets": 56000.00,
+      "debt": 450.00,
+      "__typename": "NetworthFields"
+    }
+  ]
+}

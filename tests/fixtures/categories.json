@@ -1,0 +1,181 @@
+{
+  "categories": [
+    {
+      "id": "cat-food",
+      "name": "Groceries",
+      "colorName": "green",
+      "isExcluded": false,
+      "isRolloverDisabled": false,
+      "templateId": null,
+      "spend": {
+        "current": {
+          "amount": 250.00,
+          "month": "2026-03",
+          "id": "spend-cat-food-2026-03",
+          "comparisonAmount": null,
+          "unpaidRecurringAmount": null,
+          "__typename": "SpendMonthly"
+        },
+        "histories": [],
+        "__typename": "Spend"
+      },
+      "budget": {
+        "current": {
+          "amount": 300.00,
+          "resolvedAmount": 300.00,
+          "unassignedAmount": null,
+          "childAmount": null,
+          "goalAmount": null,
+          "rolloverAmount": null,
+          "month": "2026-03",
+          "id": "budget-cat-food-2026-03",
+          "__typename": "BudgetMonthly"
+        },
+        "histories": [],
+        "__typename": "Budget"
+      },
+      "childCategories": [],
+      "__typename": "Category"
+    },
+    {
+      "id": "cat-dining",
+      "name": "Dining Out",
+      "colorName": "orange",
+      "isExcluded": false,
+      "isRolloverDisabled": false,
+      "templateId": null,
+      "spend": {
+        "current": {
+          "amount": 180.00,
+          "month": "2026-03",
+          "id": "spend-cat-dining-2026-03",
+          "comparisonAmount": null,
+          "unpaidRecurringAmount": null,
+          "__typename": "SpendMonthly"
+        },
+        "histories": [],
+        "__typename": "Spend"
+      },
+      "budget": {
+        "current": {
+          "amount": 150.00,
+          "resolvedAmount": 150.00,
+          "unassignedAmount": null,
+          "childAmount": null,
+          "goalAmount": null,
+          "rolloverAmount": null,
+          "month": "2026-03",
+          "id": "budget-cat-dining-2026-03",
+          "__typename": "BudgetMonthly"
+        },
+        "histories": [],
+        "__typename": "Budget"
+      },
+      "childCategories": [],
+      "__typename": "Category"
+    },
+    {
+      "id": "cat-subs",
+      "name": "Subscriptions",
+      "colorName": "purple",
+      "isExcluded": false,
+      "isRolloverDisabled": false,
+      "templateId": null,
+      "spend": {
+        "current": {
+          "amount": 50.00,
+          "month": "2026-03",
+          "id": "spend-cat-subs-2026-03",
+          "comparisonAmount": null,
+          "unpaidRecurringAmount": null,
+          "__typename": "SpendMonthly"
+        },
+        "histories": [],
+        "__typename": "Spend"
+      },
+      "budget": {
+        "current": {
+          "amount": 75.00,
+          "resolvedAmount": 75.00,
+          "unassignedAmount": null,
+          "childAmount": null,
+          "goalAmount": null,
+          "rolloverAmount": null,
+          "month": "2026-03",
+          "id": "budget-cat-subs-2026-03",
+          "__typename": "BudgetMonthly"
+        },
+        "histories": [],
+        "__typename": "Budget"
+      },
+      "childCategories": [],
+      "__typename": "Category"
+    },
+    {
+      "id": "cat-income",
+      "name": "Income",
+      "colorName": "teal",
+      "isExcluded": true,
+      "isRolloverDisabled": false,
+      "templateId": null,
+      "spend": null,
+      "budget": null,
+      "childCategories": [],
+      "__typename": "Category"
+    },
+    {
+      "id": "cat-transport",
+      "name": "Transportation",
+      "colorName": "blue",
+      "isExcluded": false,
+      "isRolloverDisabled": false,
+      "templateId": null,
+      "spend": {
+        "current": null,
+        "histories": [],
+        "__typename": "Spend"
+      },
+      "budget": {
+        "current": {
+          "amount": 100.00,
+          "resolvedAmount": 100.00,
+          "unassignedAmount": null,
+          "childAmount": null,
+          "goalAmount": null,
+          "rolloverAmount": null,
+          "month": "2026-03",
+          "id": "budget-cat-transport-2026-03",
+          "__typename": "BudgetMonthly"
+        },
+        "histories": [],
+        "__typename": "Budget"
+      },
+      "childCategories": [
+        {
+          "id": "cat-uber",
+          "name": "Rideshare",
+          "colorName": "blue",
+          "isExcluded": false,
+          "isRolloverDisabled": false,
+          "templateId": null,
+          "spend": {
+            "current": {
+              "amount": 35.00,
+              "month": "2026-03",
+              "id": "spend-cat-uber-2026-03",
+              "comparisonAmount": null,
+              "unpaidRecurringAmount": null,
+              "__typename": "SpendMonthly"
+            },
+            "histories": [],
+            "__typename": "Spend"
+          },
+          "budget": null,
+          "childCategories": [],
+          "__typename": "Category"
+        }
+      ],
+      "__typename": "Category"
+    }
+  ]
+}

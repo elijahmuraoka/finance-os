@@ -414,25 +414,38 @@ async function runDoctor(): Promise<DoctorCheck[]> {
       }
     }
 
-    try {
-      const snapshot = await getAllOnchainBalances();
-      const wallet = snapshot.ethereum.find((entry) => entry.address.toLowerCase() === address.toLowerCase());
-      const chainCount = wallet ? 1 + (wallet.extraChains?.length ?? 0) : 0;
-      const prefix = cacheAgeMinutes !== null && cacheAgeMinutes <= 30 ? `cached (${cacheAgeMinutes} min old)` : 'reachable';
+    // For doctor: use cache if fresh, otherwise do a quick reachability ping (don't full-fetch all wallets)
+    if (cacheExists && cacheAgeMinutes !== null && cacheAgeMinutes <= 30) {
       checks.push({
         key: 'debank',
         label: 'DeBank (EVM)',
-        ok: Boolean(wallet),
-        message: wallet ? `${prefix} — ${chainCount} address${chainCount === 1 ? '' : 'es'}` : 'no wallet data returned',
-        meta: { address, cachePath, cacheAgeMinutes, chainCount },
+        ok: true,
+        message: `cached (${cacheAgeMinutes} min old) — ${onchainCfg.ethAddresses.length} address${onchainCfg.ethAddresses.length === 1 ? '' : 'es'}`,
+        meta: { address, cacheAgeMinutes, addresses: onchainCfg.ethAddresses.length },
       });
-    } catch (err) {
-      checks.push({
-        key: 'debank',
-        label: 'DeBank (EVM)',
-        ok: false,
-        message: (err as Error).message,
-      });
+    } else {
+      // Quick ping: single address, 8s timeout
+      try {
+        const pingUrl = `https://api.rabby.io/v1/user/token_list?id=${address}&is_all=false&has_balance=true`;
+        const res = await fetch(pingUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0', 'Origin': 'https://rabby.io', 'Referer': 'https://rabby.io/' },
+          signal: AbortSignal.timeout(8000),
+        });
+        checks.push({
+          key: 'debank',
+          label: 'DeBank (EVM)',
+          ok: res.ok,
+          message: res.ok ? `reachable — ${onchainCfg.ethAddresses.length} address${onchainCfg.ethAddresses.length === 1 ? '' : 'es'}` : `HTTP ${res.status}`,
+          meta: { address, status: res.status },
+        });
+      } catch (err) {
+        checks.push({
+          key: 'debank',
+          label: 'DeBank (EVM)',
+          ok: false,
+          message: (err as Error).message,
+        });
+      }
     }
   }
 
@@ -445,7 +458,10 @@ async function runDoctor(): Promise<DoctorCheck[]> {
     });
   } else {
     try {
-      await getSolBalance(onchainCfg.solAddress);
+      await Promise.race([
+        getSolBalance(onchainCfg.solAddress),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout after 8s')), 8000)),
+      ]);
       checks.push({
         key: 'solana',
         label: 'Solana RPC',

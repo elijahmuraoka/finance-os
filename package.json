@@ -1,15 +1,20 @@
 {
   "name": "finance-os",
   "version": "0.1.0",
-  "description": "Finance OS — Copilot Money + crypto CLI engine for OpenClaw/Bob",
+  "description": "Finance OS \u2014 Copilot Money + crypto CLI engine for OpenClaw/Bob",
+  "license": "Apache-2.0",
   "type": "commonjs",
+  "bin": {
+    "finance-os": "dist/cli.js"
+  },
   "scripts": {
     "build": "bun build src/cli.ts --outdir dist --target node --format cjs",
     "dev": "bun run src/cli.ts",
     "test": "bun test",
     "lint": "biome check src/",
     "format": "biome format --write src/",
-    "check": "biome check --write src/"
+    "check": "biome check --write src/",
+    "postbuild": "bash scripts/postbuild.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.10",

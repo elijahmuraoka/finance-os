@@ -101,9 +101,8 @@ function buildFilter(opts: GetTransactionsOpts): Record<string, unknown> {
   if (opts.categoryId) {
     filter['categoryId'] = opts.categoryId;
   }
-  if (opts.search) {
-    filter['name'] = opts.search;
-  }
+  // NOTE: search is handled client-side in searchTransactions()
+  // Copilot's TransactionFilter has no server-side name/search field
   if (opts.startDate || opts.endDate) {
     const dateFilter: Record<string, string> = {};
     if (opts.startDate) dateFilter['gte'] = opts.startDate;
@@ -183,8 +182,15 @@ export async function getUnreviewed(): Promise<Transaction[]> {
 }
 
 export async function searchTransactions(query: string): Promise<Transaction[]> {
-  const page = await getTransactions({ search: query, limit: 50 });
-  return page.transactions;
+  // Copilot's TransactionFilter has no server-side search field.
+  // Fetch recent transactions and filter client-side by name + notes.
+  const page = await getTransactions({ limit: 200 });
+  const q = query.toLowerCase();
+  return page.transactions.filter(
+    (t) =>
+      t.name.toLowerCase().includes(q) ||
+      (t.userNotes && t.userNotes.toLowerCase().includes(q))
+  );
 }
 
 export function formatTransactionsTable(transactions: Transaction[]): string {

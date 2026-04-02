@@ -14,6 +14,7 @@ import { cmdCategories, cmdCategoryWrite, cmdSpending } from "./commands/categor
 import { cmdCrypto } from "./commands/crypto";
 import { cmdDoctor } from "./commands/doctor";
 import { cmdAllocation, cmdHoldings, cmdPerformance } from "./commands/investments";
+import { cmdMcp } from "./commands/mcp";
 import {
   cmdAccountHistory,
   cmdExport,
@@ -24,6 +25,7 @@ import {
 } from "./commands/misc";
 import { cmdNetworth } from "./commands/networth";
 import { cmdRecurring } from "./commands/recurring";
+import { cmdReport } from "./commands/report";
 import { cmdTags, cmdTagWrite } from "./commands/tags";
 import {
   cmdMarkAllReviewed,
@@ -66,6 +68,8 @@ const COMMAND_MAP: Record<string, CommandHandler> = {
   summary: cmdSummary,
   refresh: cmdRefresh,
   crypto: cmdCrypto,
+  mcp: cmdMcp,
+  report: cmdReport,
 };
 
 function printHelp(): void {
@@ -131,6 +135,10 @@ function printHelp(): void {
       "  finance mark-reviewed <tx-id> [--confirm]",
       "  finance set-notes <tx-id> <notes...> [--confirm]",
       "  finance mark-all-reviewed [--confirm]",
+      "",
+      "Premium commands:",
+      "  finance mcp                          — boot Model Context Protocol server",
+      "  finance report                       — generate HTML dashboard report",
       "",
     ].join("\n"),
   );

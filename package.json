@@ -1,7 +1,7 @@
 {
   "name": "finance-os",
   "version": "0.1.0",
-  "description": "Finance OS \u2014 Copilot Money + crypto CLI engine for OpenClaw/Bob",
+  "description": "Finance OS — Copilot Money + crypto CLI engine for OpenClaw/Bob",
   "license": "Apache-2.0",
   "type": "commonjs",
   "bin": {
@@ -19,5 +19,9 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.10",
     "@types/node": "^20.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.3.6"
   }
 }

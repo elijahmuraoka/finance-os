@@ -1,0 +1,87 @@
+{
+  "recurrings": [
+    {
+      "id": "rec-001",
+      "name": "Netflix",
+      "frequency": "MONTHLY",
+      "state": "ACTIVE",
+      "nextPaymentAmount": -15.99,
+      "nextPaymentDate": "2026-04-15",
+      "categoryId": "cat-entertainment",
+      "emoji": null,
+      "icon": null,
+      "rule": {
+        "nameContains": "netflix",
+        "minAmount": null,
+        "maxAmount": null,
+        "days": null,
+        "__typename": "RecurringRule"
+      },
+      "payments": [
+        { "amount": -15.99, "isPaid": true, "date": "2026-03-15", "__typename": "RecurringPayment" },
+        { "amount": -15.99, "isPaid": true, "date": "2026-02-15", "__typename": "RecurringPayment" },
+        { "amount": -15.99, "isPaid": true, "date": "2026-01-15", "__typename": "RecurringPayment" }
+      ],
+      "__typename": "Recurring"
+    },
+    {
+      "id": "rec-002",
+      "name": "Spotify",
+      "frequency": "MONTHLY",
+      "state": "ACTIVE",
+      "nextPaymentAmount": -10.99,
+      "nextPaymentDate": "2026-04-12",
+      "categoryId": "cat-entertainment",
+      "emoji": null,
+      "icon": null,
+      "rule": {
+        "nameContains": "spotify",
+        "minAmount": null,
+        "maxAmount": null,
+        "days": null,
+        "__typename": "RecurringRule"
+      },
+      "payments": [
+        { "amount": -10.99, "isPaid": true, "date": "2026-03-12", "__typename": "RecurringPayment" },
+        { "amount": -10.99, "isPaid": true, "date": "2026-02-12", "__typename": "RecurringPayment" }
+      ],
+      "__typename": "Recurring"
+    },
+    {
+      "id": "rec-003",
+      "name": "Gym Membership",
+      "frequency": "MONTHLY",
+      "state": "ACTIVE",
+      "nextPaymentAmount": -49.99,
+      "nextPaymentDate": "2026-04-01",
+      "categoryId": "cat-health",
+      "emoji": null,
+      "icon": null,
+      "rule": {
+        "nameContains": "gym",
+        "minAmount": null,
+        "maxAmount": null,
+        "days": null,
+        "__typename": "RecurringRule"
+      },
+      "payments": [
+        { "amount": -49.99, "isPaid": true, "date": "2026-03-01", "__typename": "RecurringPayment" }
+      ],
+      "__typename": "Recurring"
+    },
+    {
+      "id": "rec-004",
+      "name": "Old Service",
+      "frequency": "MONTHLY",
+      "state": "CANCELLED",
+      "nextPaymentAmount": null,
+      "nextPaymentDate": null,
+      "categoryId": null,
+      "emoji": null,
+      "icon": null,
+      "rule": null,
+      "payments": [],
+      "__typename": "Recurring"
+    }
+  ]
+}

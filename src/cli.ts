@@ -50,6 +50,20 @@ import {
 } from './primitives/networth';
 import { buildFinanceSnapshot, getSnapshotPath } from './context-loader';
 import { setCategory, markReviewed, setNotes, bulkMarkReviewed, setBudget } from './primitives/write';
+import { createCategory, editCategory, deleteCategory } from './primitives/categories-write';
+import { getHoldings, getAggregatedHoldings, formatHoldingsTable, formatAggregatedHoldingsTable } from './primitives/holdings';
+import { getInvestmentPerformance, getInvestmentBalance, getInvestmentAllocation, formatPerformanceTable, formatAllocationTable } from './primitives/investments';
+import { getTags, createTag, editTag, deleteTag, formatTagsTable } from './primitives/tags';
+import { getRecurrings, getRecurringMetrics, formatRecurringsTable } from './primitives/recurring';
+import { getBalanceHistory, formatBalanceHistoryTable } from './primitives/account-history';
+import { createTransaction, deleteTransaction } from './primitives/transactions-write';
+import { exportTransactions, exportTransactionsByMonth } from './primitives/export';
+import { getTransactionSummary, getTransactionSummaryByMonth, formatSummaryTable } from './primitives/summary';
+import { refreshAllConnections, formatRefreshResult } from './primitives/connections';
+import { getClient } from './client';
+import type { TimeFrame as HoldingsTimeFrame } from './primitives/holdings';
+import type { TimeFrame as InvestmentsTimeFrame } from './primitives/investments';
+import type { TimeFrame as AccountHistoryTimeFrame } from './primitives/account-history';
 
 function parseArgs(argv: string[]): { flags: Record<string, string | boolean>; positional: string[] } {
   const flags: Record<string, string | boolean> = {};
@@ -699,6 +713,296 @@ async function cmdCrypto(subArgs: string[]): Promise<void> {
   }
 }
 
+function parseTimeFrame(flag: string | boolean | undefined): string | undefined {
+  if (!flag || flag === true) return undefined;
+  const map: Record<string, string> = {
+    '1M': 'ONE_MONTH',
+    '3M': 'THREE_MONTHS',
+    '6M': 'SIX_MONTHS',
+    '1Y': 'ONE_YEAR',
+    'ALL': 'ALL',
+  };
+  const upper = (flag as string).toUpperCase();
+  if (!map[upper]) {
+    fatal(`Invalid timeframe: ${flag}. Valid values: 1M, 3M, 6M, 1Y, ALL`);
+  }
+  return map[upper];
+}
+
+async function cmdCategoryWrite(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  const { flags: parsedFlags, positional } = parseArgs(rest);
+  const mergedFlags = { ...flags, ...parsedFlags };
+  const subcommand = positional[0];
+
+  if (subcommand === 'create') {
+    const name = positional[1];
+    if (!name) fatal('Usage: finance category create <name> [--color <colorName>] [--excluded] [--confirm]');
+    const opts: Record<string, unknown> = {};
+    if (mergedFlags['color']) opts['colorName'] = mergedFlags['color'] as string;
+    if (mergedFlags['excluded']) opts['isExcluded'] = true;
+    await createCategory(name, opts, !!mergedFlags['confirm']);
+  } else if (subcommand === 'edit') {
+    const id = positional[1];
+    if (!id) fatal('Usage: finance category edit <id> --name <new-name> [--color <colorName>] [--excluded] [--confirm]');
+    const opts: Record<string, unknown> = {};
+    if (mergedFlags['name']) opts['name'] = mergedFlags['name'] as string;
+    if (mergedFlags['color']) opts['colorName'] = mergedFlags['color'] as string;
+    if (mergedFlags['excluded'] !== undefined) opts['isExcluded'] = !!mergedFlags['excluded'];
+    await editCategory(id, opts, !!mergedFlags['confirm']);
+  } else if (subcommand === 'delete') {
+    const id = positional[1];
+    if (!id) fatal('Usage: finance category delete <id> [--confirm]');
+    await deleteCategory(id, !!mergedFlags['confirm']);
+  } else {
+    fatal(`Unknown category subcommand: ${subcommand}. Use: create, edit, delete`);
+  }
+}
+
+async function cmdHoldings(flags: Record<string, string | boolean>): Promise<void> {
+  const aggregated = !!flags['aggregated'];
+  const timeFrame = parseTimeFrame(flags['timeframe']);
+
+  if (aggregated) {
+    const holdings = await getAggregatedHoldings(timeFrame as HoldingsTimeFrame | undefined);
+    if (flags['json']) {
+      outputJson(holdings);
+    } else {
+      outputText(formatAggregatedHoldingsTable(holdings));
+    }
+  } else {
+    const holdings = await getHoldings();
+    if (flags['json']) {
+      outputJson(holdings);
+    } else {
+      outputText(formatHoldingsTable(holdings));
+    }
+  }
+}
+
+async function cmdPerformance(flags: Record<string, string | boolean>): Promise<void> {
+  const timeFrame = parseTimeFrame(flags['timeframe']);
+  const data = await getInvestmentPerformance(timeFrame as InvestmentsTimeFrame | undefined);
+  if (flags['json']) {
+    outputJson(data);
+  } else {
+    outputText(formatPerformanceTable(data));
+  }
+}
+
+async function cmdAllocation(flags: Record<string, string | boolean>): Promise<void> {
+  const data = await getInvestmentAllocation();
+  if (flags['json']) {
+    outputJson(data);
+  } else {
+    outputText(formatAllocationTable(data));
+  }
+}
+
+async function cmdTags(flags: Record<string, string | boolean>): Promise<void> {
+  const tags = await getTags();
+  if (flags['json']) {
+    outputJson(tags);
+  } else {
+    outputText(formatTagsTable(tags));
+  }
+}
+
+async function cmdTagWrite(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  const { flags: parsedFlags, positional } = parseArgs(rest);
+  const mergedFlags = { ...flags, ...parsedFlags };
+  const subcommand = positional[0];
+
+  if (subcommand === 'create') {
+    const name = positional[1];
+    if (!name) fatal('Usage: finance tag create <name> [--color <colorName>] [--confirm]');
+    const opts: Record<string, unknown> = {};
+    if (mergedFlags['color']) opts['colorName'] = mergedFlags['color'] as string;
+    await createTag(name, opts, !!mergedFlags['confirm']);
+  } else if (subcommand === 'edit') {
+    const id = positional[1];
+    if (!id) fatal('Usage: finance tag edit <id> --name <new-name> [--confirm]');
+    const opts: Record<string, unknown> = {};
+    if (mergedFlags['name']) opts['name'] = mergedFlags['name'] as string;
+    await editTag(id, opts, !!mergedFlags['confirm']);
+  } else if (subcommand === 'delete') {
+    const id = positional[1];
+    if (!id) fatal('Usage: finance tag delete <id> [--confirm]');
+    await deleteTag(id, !!mergedFlags['confirm']);
+  } else {
+    fatal(`Unknown tag subcommand: ${subcommand}. Use: create, edit, delete`);
+  }
+}
+
+async function cmdRecurring(flags: Record<string, string | boolean>, positional: string[]): Promise<void> {
+  const id = positional[0];
+
+  if (id && flags['metrics']) {
+    const metrics = await getRecurringMetrics(id);
+    if (flags['json']) {
+      outputJson(metrics);
+    } else {
+      if (!metrics) {
+        outputText(`No metrics found for recurring ${id}`);
+      } else {
+        const fmt = (n: number | null) => n !== null ? `$${Math.abs(n).toFixed(2)}` : '?';
+        outputText(`Recurring Metrics (${id}):`);
+        outputText(`  Average: ${fmt(metrics.averageTransactionAmount)}`);
+        outputText(`  Total Spent: ${fmt(metrics.totalSpent)}`);
+        outputText(`  Period: ${metrics.period ?? '?'}`);
+      }
+    }
+    return;
+  }
+
+  const recurrings = await getRecurrings();
+  if (flags['json']) {
+    outputJson(recurrings);
+  } else {
+    outputText(formatRecurringsTable(recurrings));
+  }
+}
+
+async function cmdAccountHistory(positional: string[], flags: Record<string, string | boolean>): Promise<void> {
+  const accountId = positional[0];
+  if (!accountId) {
+    fatal('Usage: finance account-history <account-id> [--timeframe 1M|3M|6M|1Y|ALL] [--json]');
+  }
+
+  // Look up itemId from account
+  const accounts = await getAccounts(true);
+  const account = accounts.find((a) => a.id === accountId);
+  if (!account) {
+    fatal(`Account ${accountId} not found`);
+  }
+
+  // Need itemId — accounts from the raw query have it, but our primitive strips it.
+  // Fetch raw to get itemId
+  const rawData = await getClient().graphql<{
+    accounts: Array<{ id: string; itemId: string; name: string }>;
+  }>('Accounts', `query Accounts { accounts { id itemId name } }`, {});
+
+  const rawAccount = rawData?.accounts?.find((a) => a.id === accountId);
+  if (!rawAccount?.itemId) {
+    fatal(`Could not resolve itemId for account ${accountId}`);
+  }
+
+  const timeFrame = parseTimeFrame(flags['timeframe']);
+  const history = await getBalanceHistory(rawAccount.itemId, accountId, timeFrame as AccountHistoryTimeFrame | undefined);
+
+  if (flags['json']) {
+    outputJson(history);
+  } else {
+    outputText(formatBalanceHistoryTable(history, account.name));
+  }
+}
+
+async function cmdTransactionWrite(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  const { flags: parsedFlags, positional } = parseArgs(rest);
+  const mergedFlags = { ...flags, ...parsedFlags };
+  const subcommand = positional[0];
+
+  if (subcommand === 'create') {
+    const accountId = mergedFlags['account'] as string;
+    const amount = Number(mergedFlags['amount']);
+    const name = mergedFlags['name'] as string;
+    const date = mergedFlags['date'] as string;
+
+    if (!accountId || !Number.isFinite(amount) || !name || !date) {
+      fatal('Usage: finance transaction create --account <id> --amount <n> --name <name> --date <YYYY-MM-DD> [--confirm]');
+    }
+
+    // Resolve itemId from accountId
+    const rawData = await getClient().graphql<{
+      accounts: Array<{ id: string; itemId: string }>;
+    }>('Accounts', `query Accounts { accounts { id itemId } }`, {});
+
+    const rawAccount = rawData?.accounts?.find((a) => a.id === accountId);
+    if (!rawAccount?.itemId) {
+      fatal(`Could not resolve itemId for account ${accountId}`);
+    }
+
+    await createTransaction(
+      { accountId, itemId: rawAccount.itemId, amount, name, date },
+      !!mergedFlags['confirm']
+    );
+  } else if (subcommand === 'delete') {
+    const txId = positional[1];
+    if (!txId) fatal('Usage: finance transaction delete <tx-id> [--confirm]');
+
+    // Resolve itemId + accountId from tx
+    const rawData = await getClient().graphql<{
+      transactions: {
+        edges: Array<{ node: { id: string; itemId: string; accountId: string } }>;
+      };
+    }>(
+      'Transactions',
+      `query Transactions($filter: TransactionFilter) {
+        transactions(first: 200, filter: $filter) {
+          edges { node { id itemId accountId } }
+        }
+      }`,
+      { filter: { id: txId } }
+    );
+
+    const match = rawData?.transactions?.edges?.[0]?.node;
+    if (!match) {
+      fatal(`Transaction ${txId} not found`);
+    }
+
+    await deleteTransaction(match.itemId, match.accountId, txId, !!mergedFlags['confirm']);
+  } else {
+    fatal(`Unknown transaction subcommand: ${subcommand}. Use: create, delete`);
+  }
+}
+
+async function cmdExport(flags: Record<string, string | boolean>): Promise<void> {
+  const month = flags['month'] as string | undefined;
+
+  let result;
+  if (month) {
+    result = await exportTransactionsByMonth(month);
+  } else {
+    result = await exportTransactions();
+  }
+
+  if (flags['json']) {
+    outputJson(result);
+  } else {
+    if (result) {
+      outputText(`Export URL: ${result.url}`);
+      outputText(`Expires: ${result.expiresAt}`);
+    } else {
+      outputText('Export failed or returned no data.');
+    }
+  }
+}
+
+async function cmdSummary(flags: Record<string, string | boolean>): Promise<void> {
+  const month = flags['month'] as string | undefined;
+
+  let summary;
+  if (month) {
+    summary = await getTransactionSummaryByMonth(month);
+  } else {
+    summary = await getTransactionSummary();
+  }
+
+  if (flags['json']) {
+    outputJson(summary);
+  } else {
+    outputText(formatSummaryTable(summary));
+  }
+}
+
+async function cmdRefresh(flags: Record<string, string | boolean>): Promise<void> {
+  const connections = await refreshAllConnections();
+  if (flags['json']) {
+    outputJson(connections);
+  } else {
+    outputText(formatRefreshResult(connections));
+  }
+}
+
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
 
@@ -718,6 +1022,40 @@ async function main(): Promise<void> {
         '  finance networth [--history] [--json]',
         '  finance snapshot [--print]',
         '  finance doctor [--json]',
+        '',
+        'Investment commands:',
+        '  finance holdings [--aggregated] [--timeframe 1M|3M|6M|1Y|ALL] [--json]',
+        '  finance performance [--timeframe 1M|3M|6M|1Y|ALL] [--json]',
+        '  finance allocation [--json]',
+        '',
+        'Tag commands:',
+        '  finance tags [--json]',
+        '  finance tag create <name> [--color <colorName>] [--confirm]',
+        '  finance tag edit <id> --name <new-name> [--confirm]',
+        '  finance tag delete <id> [--confirm]',
+        '',
+        'Recurring commands:',
+        '  finance recurring [--json]',
+        '  finance recurring <id> --metrics [--json]',
+        '',
+        'Account history:',
+        '  finance account-history <account-id> [--timeframe 1M|3M|6M|1Y|ALL] [--json]',
+        '',
+        'Category management (dry-run by default):',
+        '  finance category create <name> [--color <colorName>] [--excluded] [--confirm]',
+        '  finance category edit <id> --name <new-name> [--color <colorName>] [--excluded] [--confirm]',
+        '  finance category delete <id> [--confirm]',
+        '',
+        'Transaction management (dry-run by default):',
+        '  finance transaction create --account <id> --amount <n> --name <name> --date <YYYY-MM-DD> [--confirm]',
+        '  finance transaction delete <tx-id> [--confirm]',
+        '',
+        'Export & summary:',
+        '  finance export [--month YYYY-MM]',
+        '  finance summary [--month YYYY-MM] [--json]',
+        '',
+        'Connections:',
+        '  finance refresh [--json]',
         '',
         'Crypto commands:',
         '  finance crypto [--json]              — full snapshot (all sources)',
@@ -781,6 +1119,42 @@ async function main(): Promise<void> {
         break;
       case 'mark-all-reviewed':
         await cmdMarkAllReviewed(flags);
+        break;
+      case 'category':
+        await cmdCategoryWrite(rest, flags);
+        break;
+      case 'holdings':
+        await cmdHoldings(flags);
+        break;
+      case 'performance':
+        await cmdPerformance(flags);
+        break;
+      case 'allocation':
+        await cmdAllocation(flags);
+        break;
+      case 'tags':
+        await cmdTags(flags);
+        break;
+      case 'tag':
+        await cmdTagWrite(rest, flags);
+        break;
+      case 'recurring':
+        await cmdRecurring(flags, positional);
+        break;
+      case 'account-history':
+        await cmdAccountHistory(positional, flags);
+        break;
+      case 'transaction':
+        await cmdTransactionWrite(rest, flags);
+        break;
+      case 'export':
+        await cmdExport(flags);
+        break;
+      case 'summary':
+        await cmdSummary(flags);
+        break;
+      case 'refresh':
+        await cmdRefresh(flags);
         break;
       case 'crypto':
         await cmdCrypto(rest);

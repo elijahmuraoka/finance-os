@@ -1,0 +1,10 @@
+{
+  "investmentPerformance": [
+    { "date": "2026-01-01", "performance": 2.15, "__typename": "InvestmentPerformance" },
+    { "date": "2026-01-15", "performance": 3.42, "__typename": "InvestmentPerformance" },
+    { "date": "2026-02-01", "performance": 1.87, "__typename": "InvestmentPerformance" },
+    { "date": "2026-02-15", "performance": -0.54, "__typename": "InvestmentPerformance" },
+    { "date": "2026-03-01", "performance": 4.21, "__typename": "InvestmentPerformance" },
+    { "date": "2026-03-15", "performance": 5.67, "__typename": "InvestmentPerformance" }
+  ]
+}

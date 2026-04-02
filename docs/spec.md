@@ -328,6 +328,226 @@ Behavior:
 ```
 - Throws if the mutation returns no category/budget payload
 
+## categories-write (all dry-run by default, confirm=true to execute)
+
+### `createCategory(name, opts?, confirm?) → CategoryResult | null`
+
+Shape:
+```ts
+{ id, name, colorName, isExcluded }
+```
+
+Opts: `{ colorName?: string, isExcluded?: boolean }`
+
+Behavior:
+- `confirm=false`: prints dry-run message, returns null
+- `confirm=true`: calls `CreateCategory` mutation
+- Throws `CopilotError` on failure
+
+### `editCategory(id, opts?, confirm?) → CategoryResult | null`
+
+Opts: `{ name?: string, colorName?: string, isExcluded?: boolean }`
+
+Behavior:
+- `confirm=false`: dry-run only
+- `confirm=true`: calls `EditCategory` mutation
+- Throws `CopilotError` on failure
+
+### `deleteCategory(id, confirm?) → void`
+
+Behavior:
+- `confirm=false`: dry-run only
+- `confirm=true`: calls `DeleteCategory` mutation
+- Throws `CopilotError` on failure
+
+## holdings
+
+### `getHoldings() → Holding[]`
+
+Shape:
+```ts
+{
+  security: { currentPrice, lastUpdate, symbol, name, type, id },
+  metrics: { averageCost, totalReturn, costBasis },
+  accountId, quantity, itemId, id
+}
+```
+
+Behavior:
+- Returns all investment holdings
+- Returns `[]` on failure
+- Null fields normalized to safe defaults
+
+### `getAggregatedHoldings(timeFrame?) → AggregatedHolding[]`
+
+Shape:
+```ts
+{ security: { currentPrice, symbol, name, type, id }, change, value }
+```
+
+Behavior:
+- Accepts optional `TimeFrame`: `ONE_MONTH | THREE_MONTHS | SIX_MONTHS | ONE_YEAR | ALL`
+- Returns `[]` on failure
+
+## investments
+
+### `getInvestmentPerformance(timeFrame?) → PerformanceEntry[]`
+
+Shape: `{ date, performance }`
+
+Behavior:
+- Returns array of date/performance pairs
+- Accepts optional `TimeFrame`
+- Returns `[]` on failure
+
+### `getInvestmentBalance(timeFrame?) → BalanceEntry[]`
+
+Shape: `{ id, date, balance }`
+
+Behavior:
+- Returns array of investment balance history
+- Accepts optional `TimeFrame`
+- Returns `[]` on failure
+
+### `getInvestmentAllocation() → AllocationEntry[]`
+
+Shape: `{ percentage, amount, type, id }`
+
+Behavior:
+- Returns investment allocation breakdown
+- Returns `[]` on failure
+
+## tags
+
+### `getTags() → Tag[]`
+
+Shape: `{ id, name, colorName }`
+
+Behavior:
+- Returns all user tags
+- Returns `[]` on failure
+
+### `createTag(name, opts?, confirm?) → Tag | null`
+
+Opts: `{ colorName?: string }`
+
+Behavior:
+- `confirm=false`: dry-run, returns null
+- `confirm=true`: calls `CreateTag` mutation
+- Throws `CopilotError` on failure
+
+### `editTag(id, opts?, confirm?) → Tag | null`
+
+Opts: `{ name?: string, colorName?: string }`
+
+Behavior:
+- `confirm=false`: dry-run
+- `confirm=true`: calls `EditTag` mutation
+
+### `deleteTag(id, confirm?) → void`
+
+Behavior:
+- `confirm=false`: dry-run
+- `confirm=true`: calls `DeleteTag` mutation
+
+## recurring
+
+### `getRecurrings() → Recurring[]`
+
+Shape:
+```ts
+{
+  id, name, frequency, state, nextPaymentAmount, nextPaymentDate, categoryId,
+  rule: { nameContains, minAmount, maxAmount, days } | null,
+  payments: Array<{ amount, isPaid, date }>
+}
+```
+
+Behavior:
+- Returns all recurring transactions (active and inactive)
+- Returns `[]` on failure
+
+### `getRecurringMetrics(id) → RecurringKeyMetrics | null`
+
+Shape: `{ averageTransactionAmount, totalSpent, period }`
+
+Behavior:
+- Returns key metrics for a specific recurring
+- Returns `null` on failure
+
+## account-history
+
+### `getBalanceHistory(itemId, accountId, timeFrame?) → BalanceHistoryEntry[]`
+
+Shape: `{ date, balance }`
+
+Behavior:
+- Returns balance history for a specific account
+- Requires both `itemId` and `accountId`
+- Accepts optional `TimeFrame`
+- Returns `[]` on failure
+
+## transactions-write (all dry-run by default)
+
+### `createTransaction(opts, confirm?) → { id, name, amount, date } | null`
+
+Opts: `{ accountId, itemId, amount, name, date }`
+
+Behavior:
+- `confirm=false`: dry-run, returns null
+- `confirm=true`: calls `CreateTransaction` mutation
+- Throws `CopilotError` on failure
+
+### `deleteTransaction(itemId, accountId, id, confirm?) → void`
+
+Behavior:
+- `confirm=false`: dry-run
+- `confirm=true`: calls `DeleteTransaction` mutation
+
+## export
+
+### `exportTransactions(filter?) → ExportResult | null`
+
+Shape: `{ url, expiresAt }`
+Filter: `{ startDate?, endDate? }`
+
+Behavior:
+- Returns a download URL for transaction export
+- Returns `null` on failure or empty URL
+
+### `exportTransactionsByMonth(month) → ExportResult | null`
+
+Behavior:
+- Convenience wrapper that converts `YYYY-MM` to date range
+- Delegates to `exportTransactions()`
+
+## summary
+
+### `getTransactionSummary(filter?) → TransactionSummary | null`
+
+Shape: `{ transactionsCount, totalNetIncome, totalIncome, totalSpent }`
+Filter: `{ startDate?, endDate? }`
+
+Behavior:
+- Returns aggregate transaction statistics
+- Returns `null` on failure
+
+### `getTransactionSummaryByMonth(month) → TransactionSummary | null`
+
+Behavior:
+- Convenience wrapper that converts `YYYY-MM` to date range
+
+## connections
+
+### `refreshAllConnections() → ConnectionStatus[]`
+
+Shape: `{ status, itemId, institutionName, institutionId }`
+
+Behavior:
+- Triggers a refresh of all financial connections
+- Returns status array
+- Returns `[]` on failure
+
 ## crypto
 
 ### `getCryptoSnapshot() → CryptoSnapshot`
@@ -370,10 +590,44 @@ Behavior:
 - `finance snapshot [--print]`
 - `finance doctor [--json]`
 
+### Investment commands
+- `finance holdings [--aggregated] [--timeframe 1M|3M|6M|1Y|ALL] [--json]`
+- `finance performance [--timeframe 1M|3M|6M|1Y|ALL] [--json]`
+- `finance allocation [--json]`
+
+### Tag commands
+- `finance tags [--json]`
+- `finance tag create <name> [--color <colorName>] [--confirm]`
+- `finance tag edit <id> --name <new-name> [--confirm]`
+- `finance tag delete <id> [--confirm]`
+
+### Recurring commands
+- `finance recurring [--json]`
+- `finance recurring <id> --metrics [--json]`
+
+### Account history
+- `finance account-history <account-id> [--timeframe 1M|3M|6M|1Y|ALL] [--json]`
+
+### Category management (dry-run by default)
+- `finance category create <name> [--color <colorName>] [--excluded] [--confirm]`
+- `finance category edit <id> --name <new-name> [--color <colorName>] [--excluded] [--confirm]`
+- `finance category delete <id> [--confirm]`
+
+### Transaction management (dry-run by default)
+- `finance transaction create --account <id> --amount <n> --name <name> --date <YYYY-MM-DD> [--confirm]`
+- `finance transaction delete <tx-id> [--confirm]`
+
+### Export & summary
+- `finance export [--month YYYY-MM]`
+- `finance summary [--month YYYY-MM] [--json]`
+
+### Connections
+- `finance refresh [--json]`
+
 ### Budget write subcommand
 - `finance budget set <category-id> <amount> [--month YYYY-MM] [--confirm]`
 
-### Transaction write commands
+### Transaction write commands (legacy)
 - `finance set-category <tx-id> <category-id> [--confirm]`
 - `finance mark-reviewed <tx-id> [--confirm]`
 - `finance set-notes <tx-id> <notes...> [--confirm]`

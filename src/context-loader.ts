@@ -15,6 +15,8 @@ import { getUnreviewed } from './primitives/transactions';
 import { getBudgetStatus } from './primitives/budgets';
 import { getCryptoSnapshot } from './crypto/index';
 import { getKrakenConfig, getGeminiConfig, getOnchainConfig } from './crypto/config';
+import { getHoldings } from './primitives/holdings';
+import { getRecurrings } from './primitives/recurring';
 
 const SNAPSHOT_PATH = path.join(
   process.env['HOME'] ?? '/Users/bob',
@@ -283,6 +285,72 @@ export async function buildFinanceSnapshot(): Promise<void> {
     } catch (err) {
       sections.push(`[crypto snapshot failed: ${(err as Error).message}]`);
     }
+  }
+
+  sections.push('');
+
+  // ── Investment Holdings ──────────────────────────────────────────────────
+  sections.push('## Investment Holdings');
+  try {
+    const holdings = await getHoldings();
+    if (holdings.length === 0) {
+      sections.push('_No investment holdings found_');
+    } else {
+      sections.push('_Top positions by value_');
+      const sorted = [...holdings]
+        .map((h) => ({
+          symbol: h.security.symbol,
+          quantity: h.quantity,
+          value: (h.security.currentPrice ?? 0) * h.quantity,
+        }))
+        .filter((h) => h.value > 0)
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 10);
+
+      for (const h of sorted) {
+        const qty = Number.isInteger(h.quantity) ? h.quantity.toString() : h.quantity.toFixed(4);
+        sections.push(`- ${h.symbol}: ${qty} shares ($${fmt(h.value)})`);
+      }
+
+      const totalValue = sorted.reduce((s, h) => s + h.value, 0);
+      if (sorted.length > 0) {
+        sections.push('');
+        sections.push(`**Total displayed: $${fmt(totalValue)}**`);
+      }
+    }
+  } catch {
+    sections.push('[unavailable]');
+  }
+
+  sections.push('');
+
+  // ── Recurring Expenses ───────────────────────────────────────────────────
+  sections.push('## Recurring Expenses');
+  try {
+    const recurrings = await getRecurrings();
+    const active = recurrings.filter((r) => r.state.toUpperCase() === 'ACTIVE');
+
+    if (active.length === 0) {
+      sections.push('_No active recurring expenses_');
+    } else {
+      const sorted = [...active].sort((a, b) => {
+        const aAmt = Math.abs(a.nextPaymentAmount ?? 0);
+        const bAmt = Math.abs(b.nextPaymentAmount ?? 0);
+        return bAmt - aAmt;
+      });
+
+      for (const r of sorted) {
+        const amt = r.nextPaymentAmount !== null ? `$${fmt(Math.abs(r.nextPaymentAmount))}` : '?';
+        const freq = r.frequency.toLowerCase() === 'monthly' ? '/mo'
+          : r.frequency.toLowerCase() === 'yearly' || r.frequency.toLowerCase() === 'annually' ? '/yr'
+          : r.frequency.toLowerCase() === 'weekly' ? '/wk'
+          : `/${r.frequency.toLowerCase()}`;
+        const next = r.nextPaymentDate ? ` (next: ${r.nextPaymentDate})` : '';
+        sections.push(`- ${r.name}: ${amt}${freq}${next}`);
+      }
+    }
+  } catch {
+    sections.push('[unavailable]');
   }
 
   sections.push('');

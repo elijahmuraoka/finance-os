@@ -1,0 +1,22 @@
+{
+  "tags": [
+    {
+      "id": "tag-001",
+      "name": "Business",
+      "colorName": "blue",
+      "__typename": "Tag"
+    },
+    {
+      "id": "tag-002",
+      "name": "Personal",
+      "colorName": "green",
+      "__typename": "Tag"
+    },
+    {
+      "id": "tag-003",
+      "name": "Tax Deductible",
+      "colorName": "red",
+      "__typename": "Tag"
+    }
+  ]
+}

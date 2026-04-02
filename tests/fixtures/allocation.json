@@ -1,0 +1,32 @@
+{
+  "investmentAllocation": [
+    {
+      "percentage": 45.2,
+      "amount": 15680.00,
+      "type": "US_STOCKS",
+      "id": "alloc-001",
+      "__typename": "InvestmentAllocation"
+    },
+    {
+      "percentage": 25.8,
+      "amount": 8950.00,
+      "type": "INTERNATIONAL_STOCKS",
+      "id": "alloc-002",
+      "__typename": "InvestmentAllocation"
+    },
+    {
+      "percentage": 18.5,
+      "amount": 6420.00,
+      "type": "BONDS",
+      "id": "alloc-003",
+      "__typename": "InvestmentAllocation"
+    },
+    {
+      "percentage": 10.5,
+      "amount": 3645.00,
+      "type": "CASH",
+      "id": "alloc-004",
+      "__typename": "InvestmentAllocation"
+    }
+  ]
+}

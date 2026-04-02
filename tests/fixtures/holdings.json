@@ -1,0 +1,82 @@
+{
+  "holdings": [
+    {
+      "security": {
+        "currentPrice": 189.84,
+        "lastUpdate": "2026-03-31T20:00:00Z",
+        "symbol": "AAPL",
+        "name": "Apple Inc.",
+        "type": "EQUITY",
+        "id": "sec-001",
+        "marketInfo": {
+          "closeTime": "16:00",
+          "openTime": "09:30"
+        },
+        "__typename": "Security"
+      },
+      "metrics": {
+        "averageCost": 150.00,
+        "totalReturn": 597.60,
+        "costBasis": 2250.00,
+        "__typename": "HoldingMetrics"
+      },
+      "accountId": "acct-invest-001",
+      "quantity": 15,
+      "itemId": "item-invest-001",
+      "id": "holding-001",
+      "__typename": "Holding"
+    },
+    {
+      "security": {
+        "currentPrice": 187.27,
+        "lastUpdate": "2026-03-31T20:00:00Z",
+        "symbol": "VTI",
+        "name": "Vanguard Total Stock Market ETF",
+        "type": "ETF",
+        "id": "sec-002",
+        "marketInfo": {
+          "closeTime": "16:00",
+          "openTime": "09:30"
+        },
+        "__typename": "Security"
+      },
+      "metrics": {
+        "averageCost": 170.00,
+        "totalReturn": 379.94,
+        "costBasis": 3740.00,
+        "__typename": "HoldingMetrics"
+      },
+      "accountId": "acct-invest-001",
+      "quantity": 22,
+      "itemId": "item-invest-001",
+      "id": "holding-002",
+      "__typename": "Holding"
+    },
+    {
+      "security": {
+        "currentPrice": 450.12,
+        "lastUpdate": "2026-03-31T20:00:00Z",
+        "symbol": "MSFT",
+        "name": "Microsoft Corporation",
+        "type": "EQUITY",
+        "id": "sec-003",
+        "marketInfo": {
+          "closeTime": "16:00",
+          "openTime": "09:30"
+        },
+        "__typename": "Security"
+      },
+      "metrics": {
+        "averageCost": 380.00,
+        "totalReturn": 350.60,
+        "costBasis": 1900.00,
+        "__typename": "HoldingMetrics"
+      },
+      "accountId": "acct-invest-001",
+      "quantity": 5,
+      "itemId": "item-invest-001",
+      "id": "holding-003",
+      "__typename": "Holding"
+    }
+  ]
+}

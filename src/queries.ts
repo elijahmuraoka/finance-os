@@ -461,6 +461,337 @@ fragment RecurringPaymentFields on RecurringPayment {
 }
 `;
 
+// ─── Category Mutations ────────────────────────────────────────────────────
+
+export const CREATE_CATEGORY_MUTATION = `
+mutation CreateCategory($input: CreateCategoryInput!) {
+  createCategory(input: $input) {
+    ...CategoryFields
+    childCategories {
+      ...CategoryFields
+      __typename
+    }
+    __typename
+  }
+}
+
+fragment CategoryFields on Category {
+  isRolloverDisabled
+  canBeDeleted
+  isExcluded
+  templateId
+  colorName
+  icon {
+    ... on EmojiUnicode {
+      unicode
+      __typename
+    }
+    ... on Genmoji {
+      id
+      src
+      __typename
+    }
+    __typename
+  }
+  name
+  id
+  __typename
+}
+`;
+
+export const EDIT_CATEGORY_MUTATION = `
+mutation EditCategory($id: ID!, $input: EditCategoryInput!) {
+  editCategory(id: $id, input: $input) {
+    category {
+      isRolloverDisabled
+      canBeDeleted
+      isExcluded
+      templateId
+      colorName
+      icon {
+        ... on EmojiUnicode {
+          unicode
+          __typename
+        }
+        ... on Genmoji {
+          id
+          src
+          __typename
+        }
+        __typename
+      }
+      name
+      id
+      __typename
+    }
+    __typename
+  }
+}
+`;
+
+export const DELETE_CATEGORY_MUTATION = `
+mutation DeleteCategory($id: ID!) {
+  deleteCategory(id: $id)
+}
+`;
+
+// ─── Holdings Queries ──────────────────────────────────────────────────────
+
+export const HOLDINGS_QUERY = `
+query Holdings {
+  holdings {
+    security {
+      currentPrice
+      lastUpdate
+      symbol
+      name
+      type
+      id
+      marketInfo {
+        closeTime
+        openTime
+        __typename
+      }
+      __typename
+    }
+    metrics {
+      averageCost
+      totalReturn
+      costBasis
+      __typename
+    }
+    accountId
+    quantity
+    itemId
+    id
+    __typename
+  }
+}
+`;
+
+export const AGGREGATED_HOLDINGS_QUERY = `
+query AggregatedHoldings($timeFrame: TimeFrame, $filter: AggregatedHoldingsFilter, $accountId: ID, $itemId: ID) {
+  aggregatedHoldings(timeFrame: $timeFrame, filter: $filter, accountId: $accountId, itemId: $itemId) {
+    security {
+      currentPrice
+      lastUpdate
+      symbol
+      name
+      type
+      id
+      __typename
+    }
+    change
+    value
+    __typename
+  }
+}
+`;
+
+// ─── Investment Queries ────────────────────────────────────────────────────
+
+export const INVESTMENT_PERFORMANCE_QUERY = `
+query InvestmentPerformance($timeFrame: TimeFrame) {
+  investmentPerformance(timeFrame: $timeFrame) {
+    date
+    performance
+    __typename
+  }
+}
+`;
+
+export const INVESTMENT_BALANCE_QUERY = `
+query InvestmentBalance($timeFrame: TimeFrame) {
+  investmentBalance(timeFrame: $timeFrame) {
+    id
+    date
+    balance
+    __typename
+  }
+}
+`;
+
+export const INVESTMENT_ALLOCATION_QUERY = `
+query InvestmentAllocation($filter: AllocationFilter) {
+  investmentAllocation(filter: $filter) {
+    percentage
+    amount
+    type
+    id
+    __typename
+  }
+}
+`;
+
+// ─── Tag Mutations ─────────────────────────────────────────────────────────
+
+export const CREATE_TAG_MUTATION = `
+mutation CreateTag($input: CreateTagInput!) {
+  createTag(input: $input) {
+    colorName
+    name
+    id
+    __typename
+  }
+}
+`;
+
+export const EDIT_TAG_MUTATION = `
+mutation EditTag($id: ID!, $input: EditTagInput!) {
+  editTag(id: $id, input: $input) {
+    colorName
+    name
+    id
+    __typename
+  }
+}
+`;
+
+export const DELETE_TAG_MUTATION = `
+mutation DeleteTag($id: ID!) {
+  deleteTag(id: $id)
+}
+`;
+
+// ─── Recurring Key Metrics Query ───────────────────────────────────────────
+
+export const RECURRING_KEY_METRICS_QUERY = `
+query RecurringKeyMetrics($id: ID!) {
+  recurring(id: $id) {
+    id
+    keyMetrics {
+      averageTransactionAmount
+      totalSpent
+      period
+      __typename
+    }
+    __typename
+  }
+}
+`;
+
+// ─── Balance History Query ─────────────────────────────────────────────────
+
+export const BALANCE_HISTORY_QUERY = `
+query BalanceHistory($itemId: ID!, $accountId: ID!, $timeFrame: TimeFrame) {
+  accountBalanceHistory(itemId: $itemId, accountId: $accountId, timeFrame: $timeFrame) {
+    date
+    balance
+    __typename
+  }
+}
+`;
+
+// ─── Transaction Management Mutations ──────────────────────────────────────
+
+export const CREATE_TRANSACTION_MUTATION = `
+mutation CreateTransaction($accountId: ID!, $itemId: ID!, $input: CreateTransactionInput!) {
+  createTransaction(accountId: $accountId, itemId: $itemId, input: $input) {
+    suggestedCategoryIds
+    recurringId
+    categoryId
+    isReviewed
+    accountId
+    createdAt
+    isPending
+    tipAmount
+    userNotes
+    itemId
+    amount
+    date
+    name
+    type
+    id
+    tags {
+      colorName
+      name
+      id
+      __typename
+    }
+    __typename
+  }
+}
+`;
+
+export const DELETE_TRANSACTION_MUTATION = `
+mutation DeleteTransaction($itemId: ID!, $accountId: ID!, $id: ID!) {
+  deleteTransaction(itemId: $itemId, accountId: $accountId, id: $id)
+}
+`;
+
+export const BULK_DELETE_TRANSACTIONS_MUTATION = `
+mutation BulkDeleteTransactions($filter: TransactionFilter) {
+  bulkDeleteTransactions(filter: $filter) {
+    failed {
+      transaction {
+        id
+        name
+        __typename
+      }
+      error
+      errorCode
+      __typename
+    }
+    __typename
+  }
+}
+`;
+
+export const ADD_TRANSACTION_TO_RECURRING_MUTATION = `
+mutation AddTransactionToRecurring($itemId: ID!, $accountId: ID!, $id: ID!, $input: AddTransactionToRecurringInput!) {
+  addTransactionToRecurring(itemId: $itemId, accountId: $accountId, id: $id, input: $input) {
+    transaction {
+      suggestedCategoryIds
+      recurringId
+      categoryId
+      isReviewed
+      accountId
+      createdAt
+      isPending
+      tipAmount
+      userNotes
+      itemId
+      amount
+      date
+      name
+      type
+      id
+      __typename
+    }
+    __typename
+  }
+}
+`;
+
+// ─── Export Transactions Query ──────────────────────────────────────────────
+
+export const EXPORT_TRANSACTIONS_QUERY = `
+query ExportTransactions($filter: TransactionFilter, $sort: [TransactionSort!]) {
+  exportTransactions(filter: $filter, sort: $sort) {
+    expiresAt
+    url
+    __typename
+  }
+}
+`;
+
+// ─── Refresh Connections Query ─────────────────────────────────────────────
+
+export const REFRESH_ALL_CONNECTIONS_QUERY = `
+query RefreshAllConnections {
+  refreshAllConnections {
+    status
+    itemId
+    institution {
+      name
+      id
+      __typename
+    }
+    __typename
+  }
+}
+`;
+
 // ─── Mutations ─────────────────────────────────────────────────────────────
 
 export const EDIT_TRANSACTION_MUTATION = `

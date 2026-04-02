@@ -1,130 +1,170 @@
-# Finance OS
+# finance-os
 
-Personal finance CLI engine — a unified interface for Copilot Money data and crypto holdings, designed to run as an [OpenClaw](https://openclaw.com) skill.
+A comprehensive CLI for personal finance management. Connects to Copilot Money, crypto exchanges (Kraken, Gemini), and on-chain wallets (ETH, SOL, multi-chain EVM).
 
-Aggregates bank accounts, transactions, budgets, net worth, and crypto portfolio (Kraken, Gemini, on-chain ETH + SOL) into a single CLI with structured JSON output suitable for agent consumption.
+## Features
+
+- **39 CLI commands** across accounts, transactions, budgets, investments, crypto, and more
+- **Auto-refresh authentication** — Firebase token refresh on 401, zero manual intervention
+- **Investment holdings** — see all positions with cost basis and returns
+- **Crypto portfolio** — Kraken, Gemini, and on-chain wallets (ETH + SOL + all EVM chains)
+- **Budget tracking** — spending vs budget per category
+- **Transaction management** — categorize, review, tag, create, delete
+- **Recurring detection** — track subscriptions and recurring expenses
+- **Export** — CSV download of all transactions
+- **99 tests** — full fixture-based test suite
+
+## Prerequisites
+
+- [Bun](https://bun.sh) runtime
+- [Copilot Money](https://copilot.money) account
+- Python 3 + Playwright (for initial auth only)
 
 ## Setup
 
-### Prerequisites
-
-- Node.js 20+
-- TypeScript 5+
-
-### Install
+### 1. Clone and install
 
 ```bash
 git clone https://github.com/elijahmuraoka/finance-os.git
 cd finance-os
-npm install
-npm run build
+bun install
+bun run build
 ```
 
-### Authentication
+### 2. Authenticate with Copilot Money
 
-#### Copilot Money Token
+```bash
+# First time — opens browser, you log in, tokens saved automatically
+./scripts/auth.sh
 
-The CLI reads a JWT from `~/.openclaw/secrets/copilot-token`. To obtain one:
+# Subsequent — auto-refreshes silently (used by the CLI on 401)
+./scripts/auth.sh --mode refresh
 
-1. Open `app.copilot.money` in your browser (logged in)
-2. DevTools → Network → filter for `graphql` → copy the `Authorization` header value (strip `"Bearer "`)
-3. Save it:
-   ```bash
-   echo "YOUR_TOKEN" > ~/.openclaw/secrets/copilot-token
-   chmod 600 ~/.openclaw/secrets/copilot-token
-   ```
+# Verify
+./scripts/auth.sh --mode verify
+```
 
-The token expires periodically (30-90 days). When expired, all API calls return `[unavailable]`.
+### 3. (Optional) Configure crypto
 
-#### Crypto Keys (optional)
+Create `~/.finance-os/crypto-keys.env` (or set `FINANCE_OS_CRYPTO_KEYS` env var):
 
-Create `~/.openclaw/secrets/crypto-keys.env` with API credentials:
+```env
+KRAKEN_API_KEY=your_key
+KRAKEN_API_SECRET=your_secret
+GEMINI_API_KEY=your_key
+GEMINI_API_SECRET=your_secret
+RABBY_ETH_ADDRESS_MAIN=0x...
+RABBY_SOL_ADDRESS=...
+```
 
-- **Kraken** — API key + private key (permissions: Query Funds, Query Ledger Entries — read-only)
-- **Gemini** — API key + secret (role: Auditor — read-only)
-- **Wallet** — Public addresses only (ETH + SOL). No seed phrases, no private keys.
+### 4. Run
 
-See `scripts/auth.sh` for the auth helper workflow.
+```bash
+# Quick start
+bun run dist/cli.js accounts
+bun run dist/cli.js snapshot --print
+bun run dist/cli.js doctor
+```
 
-## CLI Commands
+## CLI Reference
 
-### Core Finance
-
+### Read Commands
 | Command | Description |
-|---------|-------------|
-| `finance accounts [--json]` | List all connected accounts with balances |
-| `finance balances [--json]` | Simplified balance list sorted by type |
-| `finance transactions [--limit N] [--unreviewed] [--search TEXT] [--json]` | List/filter recent transactions |
-| `finance categories [--json]` | List all spending categories with IDs |
-| `finance spending [--month YYYY-MM] [--json]` | Spending by category for a month |
-| `finance budget [--month YYYY-MM] [--json]` | Budget status per category (over/under) |
-| `finance networth [--json] [--history]` | Current net worth or historical trend |
-| `finance snapshot [--print]` | Full financial context snapshot |
+|---|---|
+| `accounts` | List all connected accounts with balances |
+| `balances` | Simplified balance summary sorted by type |
+| `transactions [--limit N] [--unreviewed] [--search TEXT]` | Transaction list with filters |
+| `categories` | All spending categories |
+| `spending [--month YYYY-MM]` | Spending by category |
+| `budget [--month YYYY-MM]` | Budget status per category |
+| `networth [--history]` | Net worth (current or trend) |
+| `holdings [--aggregated] [--timeframe]` | Investment positions |
+| `performance [--timeframe]` | Portfolio returns |
+| `allocation` | Investment allocation breakdown |
+| `tags` | Custom transaction tags |
+| `recurring` | Tracked subscriptions |
+| `summary [--month YYYY-MM]` | Transaction totals |
+| `snapshot [--print]` | Full financial context snapshot |
+| `doctor` | Health check all connections |
+| `export [--month YYYY-MM]` | CSV export URL |
 
-### Write Operations (dry-run by default)
-
+### Crypto Commands
 | Command | Description |
-|---------|-------------|
-| `finance set-category <tx-id> <cat-id> [--confirm]` | Set category on a transaction |
-| `finance mark-reviewed <tx-id> [--confirm]` | Mark a transaction as reviewed |
-| `finance set-notes <tx-id> <notes> [--confirm]` | Add notes to a transaction |
-| `finance mark-all-reviewed [--confirm]` | Bulk mark all unreviewed as reviewed |
+|---|---|
+| `crypto` | Full crypto snapshot |
+| `crypto kraken` | Kraken balances |
+| `crypto gemini` | Gemini balances |
+| `crypto wallet` | On-chain ETH + SOL |
+| `crypto summary` | Aggregated holdings |
 
-### Crypto
-
+### Write Commands (dry-run by default)
 | Command | Description |
-|---------|-------------|
-| `finance crypto [--json]` | Full snapshot from all configured sources |
-| `finance crypto kraken [--json]` | Kraken balances only |
-| `finance crypto gemini [--json]` | Gemini balances only |
-| `finance crypto wallet [--json]` | On-chain ETH + SOL balances |
-| `finance crypto summary [--json]` | Top holdings aggregated across sources |
+|---|---|
+| `set-category <tx-id> <cat-id> [--confirm]` | Categorize transaction |
+| `mark-reviewed <tx-id> [--confirm]` | Mark reviewed |
+| `mark-all-reviewed [--confirm]` | Bulk review |
+| `set-notes <tx-id> <notes> [--confirm]` | Add notes |
+| `budget set <cat-id> <amount> [--confirm]` | Set budget |
+| `category create <name> [--confirm]` | Create category |
+| `category edit <id> [--confirm]` | Edit category |
+| `category delete <id> [--confirm]` | Delete category |
+| `tag create <name> [--confirm]` | Create tag |
+| `tag edit <id> [--confirm]` | Edit tag |
+| `tag delete <id> [--confirm]` | Delete tag |
+| `transaction create [--confirm]` | Create transaction |
+| `transaction delete <id> [--confirm]` | Delete transaction |
+
+### Infrastructure
+| Command | Description |
+|---|---|
+| `refresh` | Force-sync bank connections |
+| `account-history <id> [--timeframe]` | Balance history per account |
 
 ## Architecture
 
 ```
 src/
-  cli.ts                    — CLI router (command parsing, dispatch)
-  client.ts                 — GraphQL client (JWT auth, reads token from secrets)
-  queries.ts                — All GraphQL query strings for Copilot Money API
-  context-loader.ts         — Builds finance-snapshot.md (includes crypto)
-  primitives/
-    accounts.ts             — getAccounts, getAccountBalances
-    transactions.ts         — getTransactions, getUnreviewed, searchTransactions
-    categories.ts           — getCategories, getSpendingByCategory
-    budgets.ts              — getBudgetStatus, getMonthlySpend
-    networth.ts             — getNetworthHistory, getCurrentNetworth
-    write.ts                — setCategory, markReviewed, setNotes (confirm-gated)
+  cli.ts              ← CLI router (39 commands)
+  client.ts           ← GraphQL client (auto-refresh on 401)
+  queries.ts          ← All GraphQL queries + mutations
+  context-loader.ts   ← Builds markdown snapshot
+  primitives/         ← One file per domain
+    accounts.ts, transactions.ts, categories.ts,
+    budgets.ts, networth.ts, write.ts, holdings.ts,
+    investments.ts, tags.ts, recurring.ts, ...
   crypto/
-    config.ts               — Reads ~/.openclaw/secrets/crypto-keys.env
-    kraken.ts               — Kraken REST + HMAC-SHA512 auth
-    gemini.ts               — Gemini REST + HMAC-SHA384 auth
-    onchain.ts              — ETH (Blockscout) + SOL (public RPC)
-    index.ts                — CryptoSnapshot aggregator
-tests/
-  fixtures/                 — Scrubbed response fixtures (no real data)
-  primitives.test.ts        — Unit tests (all offline, no API calls)
+    kraken.ts         ← HMAC-SHA512 auth
+    gemini.ts         ← HMAC-SHA384 auth
+    onchain.ts        ← DeBank (EVM) + Solana RPC
+    config.ts, index.ts
 scripts/
-  auth.sh                   — Auth helper script
-  get_token.py              — Token retrieval utility
-  get_refresh_token.py      — Token refresh utility
+  auth.sh             ← Copilot auth (Playwright + Firebase refresh)
+  get_token.py        ← Bearer token capture
+  get_refresh_token.py ← Firebase refresh token extraction
+tests/                ← 99 unit tests (fixture-based, offline)
+docs/spec.md          ← Full behavioral specification
 ```
 
-### Design Principles
+## Auth Model
 
-- **Read-heavy, write-safe** — Write operations are dry-run by default and require `--confirm` to execute
-- **Graceful degradation** — Each data source (Copilot, Kraken, Gemini, on-chain) fails independently; missing keys produce empty results, not crashes
-- **Agent-native** — `--json` flag on every command for structured output; `snapshot` produces markdown context for LLM consumption
-- **No secrets in code** — All credentials read from `~/.openclaw/secrets/` at runtime
+Uses Copilot Money's internal GraphQL API (same as their web app). Authentication:
 
-## Testing
+1. **Initial setup:** Playwright opens Copilot in a browser, you log in, tokens captured
+2. **Ongoing:** Firebase refresh tokens exchanged via REST (~200ms, no browser)
+3. **Auto-refresh:** On 401, the client automatically refreshes and retries
 
-```bash
-npm test
-```
+Firebase refresh tokens don't expire unless you explicitly sign out of Copilot everywhere.
 
-All tests run offline against fixture data — no API keys or network access required.
+## Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `FINANCE_OS_TOKEN_PATH` | `~/.openclaw/secrets/copilot-token` | Copilot bearer token |
+| `FINANCE_OS_CRYPTO_KEYS` | `~/.openclaw/secrets/crypto-keys.env` | Crypto API keys |
+| `FINANCE_OS_SNAPSHOT_PATH` | `~/.openclaw/workspace/memory/finance-snapshot.md` | Snapshot output |
+| `FINANCE_OS_AUTH_SCRIPT` | `~/.openclaw/skills/finance/scripts/auth.sh` | Auth script path |
+| `COPILOT_TOKEN` | — | Override token directly |
 
 ## License
 
-Private. Not for redistribution.
+MIT

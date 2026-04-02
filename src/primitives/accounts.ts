@@ -26,6 +26,7 @@ export interface AccountBalance {
   balance: number;
   type: string;
   subType: string | null;
+  institutionId: string | null;
 }
 
 interface RawAccount {
@@ -91,6 +92,7 @@ export async function getAccountBalances(): Promise<AccountBalance[]> {
       balance: a.balance,
       type: a.type,
       subType: a.subType,
+      institutionId: a.institutionId,
     }))
     .sort((a, b) => a.type.localeCompare(b.type));
 }

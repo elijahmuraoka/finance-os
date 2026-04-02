@@ -16,6 +16,7 @@ export interface Transaction {
   amount: number;
   date: string;
   accountId: string;
+  itemId: string;
   categoryId: string | null;
   isReviewed: boolean;
   isPending: boolean;
@@ -58,6 +59,7 @@ interface RawTransaction {
   amount: number;
   date: string;
   accountId: string;
+  itemId: string;
   categoryId: string | null;
   isReviewed: boolean;
   isPending: boolean;
@@ -100,7 +102,7 @@ function buildFilter(opts: GetTransactionsOpts): Record<string, unknown> {
     filter['categoryId'] = opts.categoryId;
   }
   if (opts.search) {
-    filter['search'] = opts.search;
+    filter['name'] = opts.search;
   }
   if (opts.startDate || opts.endDate) {
     const dateFilter: Record<string, string> = {};
@@ -119,6 +121,7 @@ function mapTransaction(raw: RawTransaction): Transaction {
     amount: raw.amount ?? 0,
     date: raw.date,
     accountId: raw.accountId,
+    itemId: raw.itemId,
     categoryId: raw.categoryId ?? null,
     isReviewed: raw.isReviewed ?? false,
     isPending: raw.isPending ?? false,

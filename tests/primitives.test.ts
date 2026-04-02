@@ -110,7 +110,7 @@ describe('accounts', () => {
     expect(first).toHaveProperty('balance');
     expect(first).toHaveProperty('type');
     expect(first).toHaveProperty('subType');
-    expect(first).not.toHaveProperty('institutionId');
+    expect(first).toHaveProperty('institutionId');
     expect(first).not.toHaveProperty('mask');
   });
 
@@ -459,11 +459,6 @@ describe('write primitives', () => {
   test('setCategory() with confirm=true DOES call graphql with correct mutation + variables', async () => {
     mockGraphql.mockResolvedValueOnce(transactionsFixture);
     mockGraphql.mockResolvedValueOnce({
-      transactions: {
-        edges: [{ node: { id: 'tx-002', itemId: 'item-003', accountId: 'acct-003' } }],
-      },
-    });
-    mockGraphql.mockResolvedValueOnce({
       editTransaction: {
         transaction: {
           id: 'tx-002',
@@ -476,7 +471,7 @@ describe('write primitives', () => {
 
     await setCategory('tx-002', 'cat-dining', true);
 
-    expect(mockGraphql).toHaveBeenCalledTimes(3);
+    expect(mockGraphql).toHaveBeenCalledTimes(2);
     expect(mockGraphql).toHaveBeenLastCalledWith(
       'EditTransaction',
       expect.stringContaining('mutation EditTransaction'),
@@ -492,11 +487,6 @@ describe('write primitives', () => {
   test('setNotes() with confirm=true DOES call graphql', async () => {
     mockGraphql.mockResolvedValueOnce(transactionsFixture);
     mockGraphql.mockResolvedValueOnce({
-      transactions: {
-        edges: [{ node: { id: 'tx-003', itemId: 'item-004', accountId: 'acct-002' } }],
-      },
-    });
-    mockGraphql.mockResolvedValueOnce({
       editTransaction: {
         transaction: {
           id: 'tx-003',
@@ -509,7 +499,7 @@ describe('write primitives', () => {
 
     await setNotes('tx-003', 'Budget meal', true);
 
-    expect(mockGraphql).toHaveBeenCalledTimes(3);
+    expect(mockGraphql).toHaveBeenCalledTimes(2);
     expect(mockGraphql).toHaveBeenLastCalledWith(
       'EditTransaction',
       expect.stringContaining('mutation EditTransaction'),
@@ -523,11 +513,6 @@ describe('write primitives', () => {
   test('markReviewed() with confirm=true DOES call graphql', async () => {
     mockGraphql.mockResolvedValueOnce(transactionsFixture);
     mockGraphql.mockResolvedValueOnce({
-      transactions: {
-        edges: [{ node: { id: 'tx-002', itemId: 'item-003', accountId: 'acct-003' } }],
-      },
-    });
-    mockGraphql.mockResolvedValueOnce({
       editTransaction: {
         transaction: {
           id: 'tx-002',
@@ -540,7 +525,7 @@ describe('write primitives', () => {
 
     await markReviewed('tx-002', true);
 
-    expect(mockGraphql).toHaveBeenCalledTimes(3);
+    expect(mockGraphql).toHaveBeenCalledTimes(2);
     expect(mockGraphql).toHaveBeenLastCalledWith(
       'EditTransaction',
       expect.any(String),

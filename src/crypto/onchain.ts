@@ -359,7 +359,7 @@ import { homedir } from 'os';
 import { join } from 'path';
 
 const DEBANK_CACHE_DIR = join(homedir(), '.openclaw', 'cache', 'finance');
-const DEBANK_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const DEBANK_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours — daily refresh is sufficient
 
 function getCachePath(address: string): string {
   return join(DEBANK_CACHE_DIR, `debank-${address.toLowerCase()}.json`);

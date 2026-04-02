@@ -18,6 +18,7 @@ import {
 } from '../queries';
 import { getTransactions } from './transactions';
 
+
 // ─── Shared helpers ──────────────────────────────────────────────────────────
 
 function dryRun(message: string): void {
@@ -40,9 +41,9 @@ interface TransactionMeta {
 /**
  * Look up itemId + accountId for a given transaction ID.
  * EditTransaction mutation requires all three fields.
+ * Uses the Transaction interface which now includes itemId from the GraphQL query.
  */
 async function resolveTxMeta(txId: string): Promise<TransactionMeta> {
-  // The transactions query returns itemId and accountId
   const page = await getTransactions({ limit: 200 });
   const tx = page.transactions.find((t) => t.id === txId);
   if (!tx) {
@@ -52,35 +53,14 @@ async function resolveTxMeta(txId: string): Promise<TransactionMeta> {
     );
   }
 
-  // transactions primitive doesn't expose itemId — we need to fetch raw
-  // Use a raw graphql call to get itemId
-  const raw = await getClient().graphql<{
-    transactions: {
-      edges: Array<{
-        node: { id: string; itemId: string; accountId: string };
-      }>;
-    };
-  }>(
-    'Transactions',
-    `query Transactions($filter: TransactionFilter) {
-      transactions(first: 200, filter: $filter) {
-        edges { node { id itemId accountId } }
-      }
-    }`,
-    { filter: { id: txId } }
-  );
-
-  const match = raw?.transactions?.edges?.[0]?.node;
-  if (match?.itemId) {
-    return { id: txId, itemId: match.itemId, accountId: match.accountId };
+  if (!tx.itemId || !tx.accountId) {
+    throw new Error(
+      `Could not resolve itemId/accountId for transaction ${txId}. ` +
+        `This is required by the Copilot API.`
+    );
   }
 
-  // Fallback: try to get itemId from broader fetch
-  throw new Error(
-    `Could not resolve itemId for transaction ${txId}. ` +
-      `This is required by the Copilot API. ` +
-      `Try passing --item-id <itemId> directly.`
-  );
+  return { id: txId, itemId: tx.itemId, accountId: tx.accountId };
 }
 
 // ─── EditTransaction input type ───────────────────────────────────────────────

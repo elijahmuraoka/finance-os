@@ -6,6 +6,7 @@
  */
 
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { getAccountBalances } from './primitives/accounts';
 import { getMonthlySpend } from './primitives/budgets';
@@ -18,8 +19,8 @@ import { getKrakenConfig, getGeminiConfig, getOnchainConfig } from './crypto/con
 import { getHoldings } from './primitives/holdings';
 import { getRecurrings } from './primitives/recurring';
 
-const SNAPSHOT_PATH = path.join(
-  process.env['HOME'] ?? '/Users/bob',
+const SNAPSHOT_PATH = process.env.FINANCE_OS_SNAPSHOT_PATH || path.join(
+  process.env['HOME'] ?? os.homedir(),
   '.openclaw/workspace/memory/finance-snapshot.md'
 );
 
@@ -79,6 +80,9 @@ export async function buildFinanceSnapshot(): Promise<void> {
     };
 
     for (const acct of balances) {
+      // Skip crypto exchange accounts — handled separately by crypto layer
+      if (acct.institutionId?.startsWith('crypto_exchange_')) continue;
+
       const typeLabel = acct.type.toLowerCase();
       const isDebt = typeLabel === 'credit' || typeLabel === 'loan';
       const balance = acct.balance ?? 0;

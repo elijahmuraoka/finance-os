@@ -3,3 +3,6 @@ dist/
 .venv/
 *.js.map
 .DS_Store
+.env
+*.env
+!tests/fixtures/*.json

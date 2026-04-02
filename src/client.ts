@@ -8,10 +8,10 @@ import * as os from 'os';
 import * as path from 'path';
 import { execSync } from 'child_process';
 
-const AUTH_SCRIPT = path.join(os.homedir(), '.openclaw', 'skills', 'finance', 'scripts', 'auth.sh');
+const AUTH_SCRIPT = process.env.FINANCE_OS_AUTH_SCRIPT || path.join(os.homedir(), '.openclaw', 'skills', 'finance', 'scripts', 'auth.sh');
 
 const GRAPHQL_ENDPOINT = 'https://app.copilot.money/api/graphql';
-const TOKEN_FILE = path.join(os.homedir(), '.openclaw', 'secrets', 'copilot-token');
+const TOKEN_FILE = process.env.FINANCE_OS_TOKEN_PATH || path.join(os.homedir(), '.openclaw', 'secrets', 'copilot-token');
 
 export class CopilotError extends Error {
   constructor(message: string) {

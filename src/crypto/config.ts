@@ -10,7 +10,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
-const SECRETS_FILE = path.join(os.homedir(), '.openclaw', 'secrets', 'crypto-keys.env');
+const SECRETS_FILE = process.env.FINANCE_OS_CRYPTO_KEYS || path.join(os.homedir(), '.openclaw', 'secrets', 'crypto-keys.env');
 
 interface ParsedEnv {
   [key: string]: string;

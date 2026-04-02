@@ -703,10 +703,32 @@ JSON output:
   - Bilt `...8248` / account id `Og0xjkaM0EiKwZMKmj9DtbjRNPzz0MUPJkDxx9`
   - Reason: Bilt 2.0 migration / Column Bank transition
 
+## Double-counting prevention
+
+Copilot Money may include crypto exchange accounts (Kraken, Gemini) as connected accounts.
+Since finance-os also queries these exchanges directly via their APIs, this would double-count
+crypto balances in the net worth snapshot.
+
+Fix: In `context-loader.ts`, when calculating `totalAssets` and `totalDebt`, accounts whose
+`institutionId` starts with `crypto_exchange_` are excluded from the Copilot-side totals.
+Crypto balances are instead sourced solely from the dedicated crypto layer.
+
+## Environment Variables
+
+All hardcoded paths are overridable via environment variables for portability:
+
+| Variable | Default | Description |
+|---|---|---|
+| `FINANCE_OS_TOKEN_PATH` | `~/.openclaw/secrets/copilot-token` | Copilot bearer token file |
+| `FINANCE_OS_CRYPTO_KEYS` | `~/.openclaw/secrets/crypto-keys.env` | Crypto API keys env file |
+| `FINANCE_OS_SNAPSHOT_PATH` | `~/.openclaw/workspace/memory/finance-snapshot.md` | Snapshot output path |
+| `FINANCE_OS_AUTH_SCRIPT` | `~/.openclaw/skills/finance/scripts/auth.sh` | Auth script path |
+| `COPILOT_TOKEN` | — | Override bearer token directly (skip file) |
+
 ## Caching
 
 ### DeBank
-- 30-minute disk cache
+- 24-hour disk cache (previously 30 minutes; increased to reduce rate-limit risk)
 - Path: `~/.openclaw/cache/finance/debank-{address}.json`
 - Cache contains `{ tokens, fetchedAt }`
 - Fresh cache is preferred over making a new network request

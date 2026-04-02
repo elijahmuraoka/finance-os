@@ -1,8 +1,9 @@
 /**
  * transactions.ts — Transaction read primitives
  */
-import { getClient } from '../client';
-import { TRANSACTIONS_QUERY } from '../queries';
+import { getClient } from "../client";
+import { warn } from "../logger";
+import { TRANSACTIONS_QUERY } from "../queries";
 
 export interface Tag {
   id: string;
@@ -96,18 +97,18 @@ function buildFilter(opts: GetTransactionsOpts): Record<string, unknown> {
   const filter: Record<string, unknown> = {};
 
   if (opts.unreviewed) {
-    filter['isReviewed'] = false;
+    filter.isReviewed = false;
   }
   if (opts.categoryId) {
-    filter['categoryId'] = opts.categoryId;
+    filter.categoryId = opts.categoryId;
   }
   // NOTE: search is handled client-side in searchTransactions()
   // Copilot's TransactionFilter has no server-side name/search field
   if (opts.startDate || opts.endDate) {
     const dateFilter: Record<string, string> = {};
-    if (opts.startDate) dateFilter['gte'] = opts.startDate;
-    if (opts.endDate) dateFilter['lte'] = opts.endDate;
-    filter['date'] = dateFilter;
+    if (opts.startDate) dateFilter.gte = opts.startDate;
+    if (opts.endDate) dateFilter.lte = opts.endDate;
+    filter.date = dateFilter;
   }
 
   return filter;
@@ -135,30 +136,36 @@ function mapTransaction(raw: RawTransaction): Transaction {
   };
 }
 
-export async function getTransactions(
-  opts: GetTransactionsOpts = {}
-): Promise<TransactionPage> {
+export async function getTransactions(opts: GetTransactionsOpts = {}): Promise<TransactionPage> {
   try {
     const variables: Record<string, unknown> = {
       first: opts.limit ?? 50,
     };
 
-    if (opts.after) variables['after'] = opts.after;
+    if (opts.after) variables.after = opts.after;
 
     const filter = buildFilter(opts);
     if (Object.keys(filter).length > 0) {
-      variables['filter'] = filter;
+      variables.filter = filter;
     }
 
     const data = await getClient().graphql<TransactionsData>(
-      'Transactions',
+      "Transactions",
       TRANSACTIONS_QUERY,
-      variables
+      variables,
     );
 
     const raw = data?.transactions;
     if (!raw) {
-      return { transactions: [], pageInfo: { hasNextPage: false, endCursor: null, hasPreviousPage: false, startCursor: null } };
+      return {
+        transactions: [],
+        pageInfo: {
+          hasNextPage: false,
+          endCursor: null,
+          hasPreviousPage: false,
+          startCursor: null,
+        },
+      };
     }
 
     return {
@@ -171,8 +178,11 @@ export async function getTransactions(
       },
     };
   } catch (err) {
-    console.warn(`[transactions] Warning: ${(err as Error).message}`);
-    return { transactions: [], pageInfo: { hasNextPage: false, endCursor: null, hasPreviousPage: false, startCursor: null } };
+    warn("transactions", (err as Error).message);
+    return {
+      transactions: [],
+      pageInfo: { hasNextPage: false, endCursor: null, hasPreviousPage: false, startCursor: null },
+    };
   }
 }
 
@@ -187,26 +197,24 @@ export async function searchTransactions(query: string): Promise<Transaction[]> 
   const page = await getTransactions({ limit: 200 });
   const q = query.toLowerCase();
   return page.transactions.filter(
-    (t) =>
-      t.name.toLowerCase().includes(q) ||
-      (t.userNotes && t.userNotes.toLowerCase().includes(q))
+    (t) => t.name.toLowerCase().includes(q) || t.userNotes?.toLowerCase().includes(q),
   );
 }
 
 export function formatTransactionsTable(transactions: Transaction[]): string {
-  if (transactions.length === 0) return 'No transactions found.';
+  if (transactions.length === 0) return "No transactions found.";
 
-  const lines: string[] = [`Transactions (${transactions.length}):`, ''];
+  const lines: string[] = [`Transactions (${transactions.length}):`, ""];
   for (const t of transactions) {
-    const reviewed = t.isReviewed ? '✓' : '○';
-    const pending = t.isPending ? ' [pending]' : '';
+    const reviewed = t.isReviewed ? "✓" : "○";
+    const pending = t.isPending ? " [pending]" : "";
     const amount = t.amount.toFixed(2);
-    const sign = t.amount < 0 ? '' : '+';
+    const sign = t.amount < 0 ? "" : "+";
     lines.push(`  ${reviewed} ${t.date}  ${sign}$${amount}  ${t.name}${pending}`);
     if (t.userNotes) {
       lines.push(`     Notes: ${t.userNotes}`);
     }
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }

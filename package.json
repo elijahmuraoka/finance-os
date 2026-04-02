@@ -6,9 +6,13 @@
   "scripts": {
     "build": "bun build src/cli.ts --outdir dist --target node --format cjs",
     "dev": "bun run src/cli.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "lint": "biome check src/",
+    "format": "biome format --write src/",
+    "check": "biome check --write src/"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.10",
     "@types/node": "^20.0.0"
   }
 }

@@ -6,11 +6,13 @@
  * degrade gracefully rather than hard-crashing.
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 
-const SECRETS_FILE = process.env.FINANCE_OS_CRYPTO_KEYS || path.join(os.homedir(), '.openclaw', 'secrets', 'crypto-keys.env');
+const SECRETS_FILE =
+  process.env.FINANCE_OS_CRYPTO_KEYS ||
+  path.join(os.homedir(), ".openclaw", "secrets", "crypto-keys.env");
 
 interface ParsedEnv {
   [key: string]: string;
@@ -18,12 +20,12 @@ interface ParsedEnv {
 
 function parseEnvFile(filePath: string): ParsedEnv {
   try {
-    const content = fs.readFileSync(filePath, 'utf-8');
+    const content = fs.readFileSync(filePath, "utf-8");
     const result: ParsedEnv = {};
-    for (const line of content.split('\n')) {
+    for (const line of content.split("\n")) {
       const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#')) continue;
-      const eqIdx = trimmed.indexOf('=');
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eqIdx = trimmed.indexOf("=");
       if (eqIdx === -1) continue;
       const key = trimmed.slice(0, eqIdx).trim();
       const val = trimmed.slice(eqIdx + 1).trim();
@@ -39,7 +41,7 @@ function parseEnvFile(filePath: string): ParsedEnv {
 const fileEnv: ParsedEnv = parseEnvFile(SECRETS_FILE);
 
 function get(key: string): string {
-  return process.env[key] ?? fileEnv[key] ?? '';
+  return process.env[key] ?? fileEnv[key] ?? "";
 }
 
 export interface KrakenConfig {
@@ -55,14 +57,14 @@ export interface GeminiConfig {
 }
 
 export interface OnchainConfig {
-  ethAddresses: string[];   // all ETH addresses (main + alts)
+  ethAddresses: string[]; // all ETH addresses (main + alts)
   solAddress: string;
   etherscanApiKey: string;
 }
 
 export function getKrakenConfig(): KrakenConfig {
-  const apiKey = get('KRAKEN_API_KEY');
-  const apiSecret = get('KRAKEN_API_SECRET');
+  const apiKey = get("KRAKEN_API_KEY");
+  const apiSecret = get("KRAKEN_API_SECRET");
   return {
     apiKey,
     apiSecret,
@@ -71,8 +73,8 @@ export function getKrakenConfig(): KrakenConfig {
 }
 
 export function getGeminiConfig(): GeminiConfig {
-  const apiKey = get('GEMINI_API_KEY');
-  const apiSecret = get('GEMINI_API_SECRET');
+  const apiKey = get("GEMINI_API_KEY");
+  const apiSecret = get("GEMINI_API_SECRET");
   return {
     apiKey,
     apiSecret,
@@ -84,8 +86,8 @@ export function getOnchainConfig(): OnchainConfig {
   // Collect all ETH addresses: RABBY_ETH_ADDRESS, RABBY_ETH_ADDRESS_MAIN, RABBY_ETH_ADDRESS_ALT1..9
   const ethAddresses: string[] = [];
   const candidates = [
-    'RABBY_ETH_ADDRESS',
-    'RABBY_ETH_ADDRESS_MAIN',
+    "RABBY_ETH_ADDRESS",
+    "RABBY_ETH_ADDRESS_MAIN",
     ...Array.from({ length: 9 }, (_, i) => `RABBY_ETH_ADDRESS_ALT${i + 1}`),
   ];
   for (const key of candidates) {
@@ -95,7 +97,7 @@ export function getOnchainConfig(): OnchainConfig {
 
   return {
     ethAddresses,
-    solAddress: get('RABBY_SOL_ADDRESS'),
-    etherscanApiKey: get('ETHERSCAN_API_KEY'),
+    solAddress: get("RABBY_SOL_ADDRESS"),
+    etherscanApiKey: get("ETHERSCAN_API_KEY"),
   };
 }

@@ -10,20 +10,19 @@
  * transaction first when itemId/accountId aren't supplied.
  */
 
-import { getClient } from '../client';
+import { getClient } from "../client";
 import {
-  EDIT_TRANSACTION_MUTATION,
   BULK_EDIT_TRANSACTIONS_MUTATION,
+  EDIT_TRANSACTION_MUTATION,
   SET_BUDGET_MUTATION,
-} from '../queries';
-import { getTransactions } from './transactions';
-
+} from "../queries";
+import { getTransactions } from "./transactions";
 
 // ─── Shared helpers ──────────────────────────────────────────────────────────
 
 function dryRun(message: string): void {
   process.stdout.write(`[dry-run] ${message}\n`);
-  process.stdout.write('  (Pass --confirm to execute this mutation)\n');
+  process.stdout.write("  (Pass --confirm to execute this mutation)\n");
 }
 
 function validateBudgetMonth(month: string): void {
@@ -49,14 +48,14 @@ async function resolveTxMeta(txId: string): Promise<TransactionMeta> {
   if (!tx) {
     throw new Error(
       `Transaction ${txId} not found in recent 200 transactions. ` +
-        `Try running 'finance transactions --json' to confirm the ID.`
+        `Try running 'finance transactions --json' to confirm the ID.`,
     );
   }
 
   if (!tx.itemId || !tx.accountId) {
     throw new Error(
       `Could not resolve itemId/accountId for transaction ${txId}. ` +
-        `This is required by the Copilot API.`
+        `This is required by the Copilot API.`,
     );
   }
 
@@ -85,29 +84,29 @@ interface EditTransactionResult {
 
 async function fireEditTransaction(
   meta: TransactionMeta,
-  input: EditTransactionInput
+  input: EditTransactionInput,
 ): Promise<void> {
   const result = await getClient().graphql<EditTransactionResult>(
-    'EditTransaction',
+    "EditTransaction",
     EDIT_TRANSACTION_MUTATION,
     {
       itemId: meta.itemId,
       accountId: meta.accountId,
       id: meta.id,
       input,
-    }
+    },
   );
 
   const updated = result?.editTransaction?.transaction;
   if (!updated) {
-    throw new Error('EditTransaction returned no transaction. Mutation may have failed.');
+    throw new Error("EditTransaction returned no transaction. Mutation may have failed.");
   }
 
   process.stdout.write(
     `✓ Updated transaction ${meta.id}\n` +
-      `  categoryId: ${updated.categoryId ?? 'null'}\n` +
+      `  categoryId: ${updated.categoryId ?? "null"}\n` +
       `  isReviewed: ${updated.isReviewed}\n` +
-      `  notes: ${updated.userNotes ?? 'null'}\n`
+      `  notes: ${updated.userNotes ?? "null"}\n`,
   );
 }
 
@@ -151,7 +150,7 @@ interface SetBudgetResult {
 export async function setCategory(
   txId: string,
   categoryId: string,
-  confirm: boolean
+  confirm: boolean,
 ): Promise<void> {
   if (!confirm) {
     dryRun(`Would set transaction ${txId} category to ${categoryId}`);
@@ -178,11 +177,7 @@ export async function markReviewed(txId: string, confirm: boolean): Promise<void
 /**
  * Set notes on a single transaction.
  */
-export async function setNotes(
-  txId: string,
-  notes: string,
-  confirm: boolean
-): Promise<void> {
+export async function setNotes(txId: string, notes: string, confirm: boolean): Promise<void> {
   if (!confirm) {
     dryRun(`Would set notes on transaction ${txId} to: ${notes}`);
     return;
@@ -196,19 +191,16 @@ export async function setNotes(
  * Bulk-mark multiple transactions as reviewed.
  * Uses BulkEditTransactions with an ID filter.
  */
-export async function bulkMarkReviewed(
-  txIds: string[],
-  confirm: boolean
-): Promise<void> {
+export async function bulkMarkReviewed(txIds: string[], confirm: boolean): Promise<void> {
   if (txIds.length === 0) {
-    process.stdout.write('No transactions to mark reviewed.\n');
+    process.stdout.write("No transactions to mark reviewed.\n");
     return;
   }
 
   if (!confirm) {
     dryRun(
       `Would mark ${txIds.length} transaction(s) as reviewed:\n` +
-        txIds.map((id) => `  - ${id}`).join('\n')
+        txIds.map((id) => `  - ${id}`).join("\n"),
     );
     return;
   }
@@ -221,21 +213,19 @@ export async function bulkMarkReviewed(
   for (const txId of txIds) {
     try {
       const result = await getClient().graphql<BulkEditResult>(
-        'BulkEditTransactions',
+        "BulkEditTransactions",
         BULK_EDIT_TRANSACTIONS_MUTATION,
         {
           input,
           filter: { id: txId },
-        }
+        },
       );
 
       const updatedCount = result?.bulkEditTransactions?.updated?.length ?? 0;
       const failedItems = result?.bulkEditTransactions?.failed ?? [];
 
       if (failedItems.length > 0) {
-        process.stderr.write(
-          `  ✗ ${txId}: ${failedItems[0]?.error ?? 'unknown error'}\n`
-        );
+        process.stderr.write(`  ✗ ${txId}: ${failedItems[0]?.error ?? "unknown error"}\n`);
         failed++;
       } else {
         succeeded += updatedCount;
@@ -247,7 +237,7 @@ export async function bulkMarkReviewed(
   }
 
   process.stdout.write(
-    `Bulk mark reviewed: ${succeeded} updated, ${failed} failed (of ${txIds.length} total)\n`
+    `Bulk mark reviewed: ${succeeded} updated, ${failed} failed (of ${txIds.length} total)\n`,
   );
 }
 
@@ -258,7 +248,7 @@ export async function setBudget(
   categoryId: string,
   amount: number,
   month: string,
-  confirm: boolean
+  confirm: boolean,
 ): Promise<void> {
   validateBudgetMonth(month);
 
@@ -272,7 +262,7 @@ export async function setBudget(
   }
 
   const result = await getClient().graphql<SetBudgetResult>(
-    'SetBudgetAmount',
+    "SetBudgetAmount",
     SET_BUDGET_MUTATION,
     {
       categoryId,
@@ -280,18 +270,18 @@ export async function setBudget(
       input: {
         amount,
       },
-    }
+    },
   );
 
   const updated = result?.setCategoryBudget;
   const applied = updated?.budget?.current;
   if (!updated?.category || !applied) {
-    throw new Error('SetBudgetAmount returned no budget data. Mutation may have failed.');
+    throw new Error("SetBudgetAmount returned no budget data. Mutation may have failed.");
   }
 
   process.stdout.write(
     `✓ Updated budget ${updated.category.name} (${updated.category.id})\n` +
       `  month: ${applied.month}\n` +
-      `  amount: $${(applied.resolvedAmount ?? applied.amount ?? amount).toFixed(2)}\n`
+      `  amount: $${(applied.resolvedAmount ?? applied.amount ?? amount).toFixed(2)}\n`,
   );
 }

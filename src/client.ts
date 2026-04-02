@@ -3,20 +3,25 @@
  * Token priority: process.env.COPILOT_TOKEN > ~/.openclaw/secrets/copilot-token
  * Auto-refreshes via Firebase refresh token on 401 — no manual intervention needed.
  */
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
-import { execSync } from 'child_process';
 
-const AUTH_SCRIPT = process.env.FINANCE_OS_AUTH_SCRIPT || path.join(os.homedir(), '.openclaw', 'skills', 'finance', 'scripts', 'auth.sh');
+import { execSync } from "node:child_process";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 
-const GRAPHQL_ENDPOINT = 'https://app.copilot.money/api/graphql';
-const TOKEN_FILE = process.env.FINANCE_OS_TOKEN_PATH || path.join(os.homedir(), '.openclaw', 'secrets', 'copilot-token');
+const AUTH_SCRIPT =
+  process.env.FINANCE_OS_AUTH_SCRIPT ||
+  path.join(os.homedir(), ".openclaw", "skills", "finance", "scripts", "auth.sh");
+
+const GRAPHQL_ENDPOINT = "https://app.copilot.money/api/graphql";
+const TOKEN_FILE =
+  process.env.FINANCE_OS_TOKEN_PATH ||
+  path.join(os.homedir(), ".openclaw", "secrets", "copilot-token");
 
 export class CopilotError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'CopilotError';
+    this.name = "CopilotError";
   }
 }
 
@@ -28,13 +33,13 @@ function loadToken(): string {
 
   // Priority 2: token file
   try {
-    const token = fs.readFileSync(TOKEN_FILE, 'utf-8').trim();
-    if (!token) throw new CopilotError('Token file exists but is empty');
+    const token = fs.readFileSync(TOKEN_FILE, "utf-8").trim();
+    if (!token) throw new CopilotError("Token file exists but is empty");
     return token;
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
       throw new CopilotError(
-        `Copilot token not found. Set COPILOT_TOKEN env var or write token to ${TOKEN_FILE}`
+        `Copilot token not found. Set COPILOT_TOKEN env var or write token to ${TOKEN_FILE}`,
       );
     }
     throw err;
@@ -43,15 +48,13 @@ function loadToken(): string {
 
 function refreshToken(): void {
   if (!fs.existsSync(AUTH_SCRIPT)) {
-    throw new CopilotError(
-      `Auth script not found at ${AUTH_SCRIPT}. Cannot auto-refresh token.`
-    );
+    throw new CopilotError(`Auth script not found at ${AUTH_SCRIPT}. Cannot auto-refresh token.`);
   }
   try {
-    execSync(`bash "${AUTH_SCRIPT}" --mode refresh`, { stdio: 'pipe' });
+    execSync(`bash "${AUTH_SCRIPT}" --mode refresh`, { stdio: "pipe" });
   } catch (err) {
     throw new CopilotError(
-      `Token refresh failed: ${(err as Error).message}. Run auth.sh --mode refresh manually or re-authenticate with auth.sh (no flags).`
+      `Token refresh failed: ${(err as Error).message}. Run auth.sh --mode refresh manually or re-authenticate with auth.sh (no flags).`,
     );
   }
 }
@@ -65,11 +68,11 @@ export class CopilotClient {
 
   private async doRequest(body: string): Promise<Response> {
     return fetch(GRAPHQL_ENDPOINT, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         Authorization: `Bearer ${this.token}`,
-        'User-Agent': 'finance-os/0.1.0',
+        "User-Agent": "finance-os/0.1.0",
       },
       body,
     });
@@ -78,7 +81,7 @@ export class CopilotClient {
   async graphql<T = unknown>(
     operationName: string,
     query: string,
-    variables?: Record<string, unknown>
+    variables?: Record<string, unknown>,
   ): Promise<T> {
     const body = JSON.stringify({
       operationName,
@@ -101,7 +104,7 @@ export class CopilotClient {
         _client = null; // reset singleton so next call gets fresh token
       } catch (err) {
         throw new CopilotError(
-          `401 from Copilot API and auto-refresh failed: ${(err as Error).message}`
+          `401 from Copilot API and auto-refresh failed: ${(err as Error).message}`,
         );
       }
       try {
@@ -112,25 +115,23 @@ export class CopilotClient {
     }
 
     if (!response.ok) {
-      throw new CopilotError(
-        `HTTP ${response.status} ${response.statusText} from Copilot API`
-      );
+      throw new CopilotError(`HTTP ${response.status} ${response.statusText} from Copilot API`);
     }
 
     let json: { data?: T; errors?: Array<{ message: string }> };
     try {
       json = (await response.json()) as typeof json;
     } catch {
-      throw new CopilotError('Failed to parse JSON response from Copilot API');
+      throw new CopilotError("Failed to parse JSON response from Copilot API");
     }
 
     if (json.errors && json.errors.length > 0) {
-      const messages = json.errors.map((e) => e.message).join('; ');
+      const messages = json.errors.map((e) => e.message).join("; ");
       throw new CopilotError(`GraphQL errors: ${messages}`);
     }
 
     if (json.data === undefined) {
-      throw new CopilotError('No data field in GraphQL response');
+      throw new CopilotError("No data field in GraphQL response");
     }
 
     return json.data;

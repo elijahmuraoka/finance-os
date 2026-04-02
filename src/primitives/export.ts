@@ -1,8 +1,9 @@
 /**
  * export.ts — Transaction export read primitive
  */
-import { getClient } from '../client';
-import { EXPORT_TRANSACTIONS_QUERY } from '../queries';
+import { getClient } from "../client";
+import { warn } from "../logger";
+import { EXPORT_TRANSACTIONS_QUERY } from "../queries";
 
 export interface ExportResult {
   url: string;
@@ -22,31 +23,29 @@ export interface ExportFilter {
 }
 
 function getMonthRange(month: string): { startDate: string; endDate: string } {
-  const [year, mon] = month.split('-').map(Number);
-  const startDate = `${year}-${String(mon).padStart(2, '0')}-01`;
+  const [year, mon] = month.split("-").map(Number);
+  const startDate = `${year}-${String(mon).padStart(2, "0")}-01`;
   const lastDay = new Date(year, mon, 0).getDate();
-  const endDate = `${year}-${String(mon).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  const endDate = `${year}-${String(mon).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
   return { startDate, endDate };
 }
 
-export async function exportTransactions(
-  filter?: ExportFilter
-): Promise<ExportResult | null> {
+export async function exportTransactions(filter?: ExportFilter): Promise<ExportResult | null> {
   try {
     const variables: Record<string, unknown> = {};
     if (filter) {
       const txFilter: Record<string, unknown> = {};
-      if (filter.startDate) txFilter['startDate'] = filter.startDate;
-      if (filter.endDate) txFilter['endDate'] = filter.endDate;
+      if (filter.startDate) txFilter.startDate = filter.startDate;
+      if (filter.endDate) txFilter.endDate = filter.endDate;
       if (Object.keys(txFilter).length > 0) {
-        variables['filter'] = txFilter;
+        variables.filter = txFilter;
       }
     }
 
     const data = await getClient().graphql<ExportTransactionsData>(
-      'ExportTransactions',
+      "ExportTransactions",
       EXPORT_TRANSACTIONS_QUERY,
-      variables
+      variables,
     );
 
     const result = data?.exportTransactions;
@@ -54,17 +53,15 @@ export async function exportTransactions(
 
     return {
       url: result.url,
-      expiresAt: result.expiresAt ?? '',
+      expiresAt: result.expiresAt ?? "",
     };
   } catch (err) {
-    console.warn(`[export] Warning: ${(err as Error).message}`);
+    warn("export", (err as Error).message);
     return null;
   }
 }
 
-export async function exportTransactionsByMonth(
-  month: string
-): Promise<ExportResult | null> {
+export async function exportTransactionsByMonth(month: string): Promise<ExportResult | null> {
   const range = getMonthRange(month);
   return exportTransactions(range);
 }

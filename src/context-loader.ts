@@ -5,27 +5,25 @@
  * snapshot to memory/finance-snapshot.md for Bob's context.
  */
 
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
-import { getAccountBalances } from './primitives/accounts';
-import { getMonthlySpend } from './primitives/budgets';
-import { getSpendingByCategory } from './primitives/categories';
-import { getCurrentNetworth } from './primitives/networth';
-import { getUnreviewed } from './primitives/transactions';
-import { getBudgetStatus } from './primitives/budgets';
-import { getCryptoSnapshot } from './crypto/index';
-import { getKrakenConfig, getGeminiConfig, getOnchainConfig } from './crypto/config';
-import { getHoldings } from './primitives/holdings';
-import { getRecurrings } from './primitives/recurring';
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { getGeminiConfig, getKrakenConfig, getOnchainConfig } from "./crypto/config";
+import { getCryptoSnapshot } from "./crypto/index";
+import { getAccountBalances } from "./primitives/accounts";
+import { getBudgetStatus, getMonthlySpend } from "./primitives/budgets";
+import { getSpendingByCategory } from "./primitives/categories";
+import { getHoldings } from "./primitives/holdings";
+import { getCurrentNetworth } from "./primitives/networth";
+import { getRecurrings } from "./primitives/recurring";
+import { getUnreviewed } from "./primitives/transactions";
 
-const SNAPSHOT_PATH = process.env.FINANCE_OS_SNAPSHOT_PATH || path.join(
-  process.env['HOME'] ?? os.homedir(),
-  '.openclaw/workspace/memory/finance-snapshot.md'
-);
+const SNAPSHOT_PATH =
+  process.env.FINANCE_OS_SNAPSHOT_PATH ||
+  path.join(process.env.HOME ?? os.homedir(), ".openclaw/workspace/memory/finance-snapshot.md");
 
 function fmt(n: number): string {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function fmtDollars(n: number): string {
@@ -33,29 +31,29 @@ function fmtDollars(n: number): string {
 }
 
 function nowET(): string {
-  return new Date().toLocaleString('en-US', {
-    timeZone: 'America/New_York',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+  return new Date().toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
     hour12: true,
   });
 }
 
 function currentMonthLabel(): string {
-  return new Date().toLocaleString('en-US', {
-    timeZone: 'America/New_York',
-    month: 'long',
-    year: 'numeric',
+  return new Date().toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    month: "long",
+    year: "numeric",
   });
 }
 
 function currentMonth(): string {
   const now = new Date();
   const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const month = String(now.getMonth() + 1).padStart(2, "0");
   return `${year}-${month}`;
 }
 
@@ -64,7 +62,7 @@ export async function buildFinanceSnapshot(): Promise<void> {
 
   sections.push(`# Finance Snapshot`);
   sections.push(`_Updated: ${nowET()} ET_`);
-  sections.push('');
+  sections.push("");
 
   // ── Accounts ────────────────────────────────────────────────────────────
   try {
@@ -76,21 +74,22 @@ export async function buildFinanceSnapshot(): Promise<void> {
 
     // Accounts with known stale/unreliable data — excluded from totals and flagged
     const STALE_ACCOUNT_IDS: Record<string, string> = {
-      'Og0xjkaM0EiKwZMKmj9DtbjRNPzz0MUPJkDxx9': 'Bilt 2.0 upgrade pending — not yet activated with Column Bank',
+      Og0xjkaM0EiKwZMKmj9DtbjRNPzz0MUPJkDxx9:
+        "Bilt 2.0 upgrade pending — not yet activated with Column Bank",
     };
 
     for (const acct of balances) {
       // Skip crypto exchange accounts — handled separately by crypto layer
-      if (acct.institutionId?.startsWith('crypto_exchange_')) continue;
+      if (acct.institutionId?.startsWith("crypto_exchange_")) continue;
 
       const typeLabel = acct.type.toLowerCase();
-      const isDebt = typeLabel === 'credit' || typeLabel === 'loan';
+      const isDebt = typeLabel === "credit" || typeLabel === "loan";
       const balance = acct.balance ?? 0;
       const staleReason = STALE_ACCOUNT_IDS[acct.id];
 
       if (staleReason) {
         // Exclude from totals, flag in output
-        const sub = acct.subType ? ` (${acct.subType})` : '';
+        const sub = acct.subType ? ` (${acct.subType})` : "";
         accountLines.push(`- ~~${acct.name}${sub}~~ [${acct.type}]: ⚠️ stale — ${staleReason}`);
         continue;
       }
@@ -101,23 +100,23 @@ export async function buildFinanceSnapshot(): Promise<void> {
         totalAssets += balance;
       }
 
-      const sub = acct.subType ? ` (${acct.subType})` : '';
+      const sub = acct.subType ? ` (${acct.subType})` : "";
       const balStr = balance >= 0 ? `$${fmt(balance)}` : `-$${fmt(Math.abs(balance))}`;
       accountLines.push(`- ${acct.name}${sub} [${acct.type}]: ${balStr}`);
     }
 
-    sections.push('## Accounts');
+    sections.push("## Accounts");
     sections.push(...accountLines);
-    sections.push('');
+    sections.push("");
     sections.push(
-      `**Total assets:** ${fmtDollars(totalAssets)} | **Total debt:** ${fmtDollars(totalDebt)}`
+      `**Total assets:** ${fmtDollars(totalAssets)} | **Total debt:** ${fmtDollars(totalDebt)}`,
     );
   } catch {
-    sections.push('## Accounts');
-    sections.push('[unavailable]');
+    sections.push("## Accounts");
+    sections.push("[unavailable]");
   }
 
-  sections.push('');
+  sections.push("");
 
   // ── Monthly Spend ────────────────────────────────────────────────────────
   const month = currentMonth();
@@ -150,7 +149,7 @@ export async function buildFinanceSnapshot(): Promise<void> {
       .slice(0, 5);
 
     if (topCats.length > 0) {
-      const topStr = topCats.map((c) => `${c.categoryName} ${fmtDollars(c.actual)}`).join(', ');
+      const topStr = topCats.map((c) => `${c.categoryName} ${fmtDollars(c.actual)}`).join(", ");
       sections.push(`- **Top categories:** ${topStr}`);
     }
 
@@ -159,38 +158,38 @@ export async function buildFinanceSnapshot(): Promise<void> {
     if (overBudget.length > 0) {
       const overStr = overBudget
         .map((b) => `${b.categoryName} ${fmtDollars(Math.abs(b.remaining))} over`)
-        .join(', ');
+        .join(", ");
       sections.push(`- **Over budget:** ${overStr}`);
     } else {
-      sections.push('- **Over budget:** None');
+      sections.push("- **Over budget:** None");
     }
   } catch {
     sections.push(`## This Month (${monthLabel})`);
-    sections.push('[unavailable]');
+    sections.push("[unavailable]");
   }
 
-  sections.push('');
+  sections.push("");
 
   // ── Net Worth ────────────────────────────────────────────────────────────
   try {
     const nw = await getCurrentNetworth();
-    sections.push('## Net Worth');
+    sections.push("## Net Worth");
     if (nw) {
       sections.push(
-        `Assets: ${fmtDollars(nw.assets)} | Debt: ${fmtDollars(nw.debt)} | **Net: ${nw.net >= 0 ? fmtDollars(nw.net) : `-${fmtDollars(Math.abs(nw.net))}`}**`
+        `Assets: ${fmtDollars(nw.assets)} | Debt: ${fmtDollars(nw.debt)} | **Net: ${nw.net >= 0 ? fmtDollars(nw.net) : `-${fmtDollars(Math.abs(nw.net))}`}**`,
       );
     } else {
-      sections.push('[no data]');
+      sections.push("[no data]");
     }
   } catch {
-    sections.push('## Net Worth');
-    sections.push('[unavailable]');
+    sections.push("## Net Worth");
+    sections.push("[unavailable]");
   }
 
-  sections.push('');
+  sections.push("");
 
   // ── Action Needed ────────────────────────────────────────────────────────
-  sections.push('## Action Needed');
+  sections.push("## Action Needed");
 
   try {
     const unreviewed = await getUnreviewed();
@@ -198,13 +197,13 @@ export async function buildFinanceSnapshot(): Promise<void> {
 
     if (count > 0) {
       sections.push(
-        `- **${count} unreviewed transactions** (run: \`finance transactions --unreviewed --json\`)`
+        `- **${count} unreviewed transactions** (run: \`finance transactions --unreviewed --json\`)`,
       );
     } else {
-      sections.push('- No unreviewed transactions ✓');
+      sections.push("- No unreviewed transactions ✓");
     }
   } catch {
-    sections.push('- Unreviewed transaction count: [unavailable]');
+    sections.push("- Unreviewed transaction count: [unavailable]");
   }
 
   // Re-use overBudget from spending section (re-fetch if needed — simple approach)
@@ -213,14 +212,14 @@ export async function buildFinanceSnapshot(): Promise<void> {
     const overBudget = budgetStatus.filter((b) => b.isOverBudget);
     for (const b of overBudget) {
       sections.push(
-        `- **${b.categoryName}** is over budget by ${fmtDollars(Math.abs(b.remaining))} (run: \`finance budget --json\`)`
+        `- **${b.categoryName}** is over budget by ${fmtDollars(Math.abs(b.remaining))} (run: \`finance budget --json\`)`,
       );
     }
   } catch {
     // already handled above
   }
 
-  sections.push('');
+  sections.push("");
 
   // ── Crypto Holdings ──────────────────────────────────────────────────────
   const krakenCfg = getKrakenConfig();
@@ -231,23 +230,31 @@ export async function buildFinanceSnapshot(): Promise<void> {
     geminiCfg.configured ||
     Boolean(onchainCfg.ethAddresses.length > 0 || onchainCfg.solAddress);
 
-  sections.push('## Crypto Holdings');
+  sections.push("## Crypto Holdings");
 
   if (!anyCryptoConfigured) {
-    sections.push('_Not configured — add keys to run `finance crypto`_');
-    sections.push('_Edit `~/.openclaw/secrets/crypto-keys.env` to configure Kraken, Gemini, and/or wallet addresses_');
+    sections.push("_Not configured — add keys to run `finance crypto`_");
+    sections.push(
+      "_Set FINANCE_OS_CRYPTO_KEYS env var or edit the default crypto-keys.env file to configure Kraken, Gemini, and/or wallet addresses_",
+    );
   } else {
     try {
       const crypto = await getCryptoSnapshot();
       const { summary, exchanges, onchain, onchainError } = crypto;
 
-      sections.push(`_Sources: ${[
-        exchanges.kraken !== null ? 'Kraken' : null,
-        exchanges.gemini !== null ? 'Gemini' : null,
-        onchain?.ethereum ? 'ETH wallet' : null,
-        onchain?.solana ? 'SOL wallet' : null,
-      ].filter(Boolean).join(', ') || 'none configured'}_`);
-      sections.push('');
+      sections.push(
+        `_Sources: ${
+          [
+            exchanges.kraken !== null ? "Kraken" : null,
+            exchanges.gemini !== null ? "Gemini" : null,
+            onchain?.ethereum ? "ETH wallet" : null,
+            onchain?.solana ? "SOL wallet" : null,
+          ]
+            .filter(Boolean)
+            .join(", ") || "none configured"
+        }_`,
+      );
+      sections.push("");
 
       sections.push(`**Total crypto: ${fmtDollars(summary.totalUsd)}**`);
 
@@ -258,11 +265,11 @@ export async function buildFinanceSnapshot(): Promise<void> {
         .slice(0, 8);
 
       for (const [symbol, data] of topHoldings) {
-        const amount = data.amount.toLocaleString('en-US', { maximumFractionDigits: 6 });
+        const amount = data.amount.toLocaleString("en-US", { maximumFractionDigits: 6 });
         sections.push(`- ${symbol}: ${amount} (${fmtDollars(data.usdValue)})`);
       }
 
-      sections.push('');
+      sections.push("");
 
       const exchangeParts: string[] = [];
       if (exchanges.kraken !== null) {
@@ -284,23 +291,23 @@ export async function buildFinanceSnapshot(): Promise<void> {
       }
 
       if (exchangeParts.length > 0) {
-        sections.push(`**By source:** ${exchangeParts.join(' | ')}`);
+        sections.push(`**By source:** ${exchangeParts.join(" | ")}`);
       }
     } catch (err) {
       sections.push(`[crypto snapshot failed: ${(err as Error).message}]`);
     }
   }
 
-  sections.push('');
+  sections.push("");
 
   // ── Investment Holdings ──────────────────────────────────────────────────
-  sections.push('## Investment Holdings');
+  sections.push("## Investment Holdings");
   try {
     const holdings = await getHoldings();
     if (holdings.length === 0) {
-      sections.push('_No investment holdings found_');
+      sections.push("_No investment holdings found_");
     } else {
-      sections.push('_Top positions by value_');
+      sections.push("_Top positions by value_");
       const sorted = [...holdings]
         .map((h) => ({
           symbol: h.security.symbol,
@@ -318,24 +325,24 @@ export async function buildFinanceSnapshot(): Promise<void> {
 
       const totalValue = sorted.reduce((s, h) => s + h.value, 0);
       if (sorted.length > 0) {
-        sections.push('');
+        sections.push("");
         sections.push(`**Total displayed: $${fmt(totalValue)}**`);
       }
     }
   } catch {
-    sections.push('[unavailable]');
+    sections.push("[unavailable]");
   }
 
-  sections.push('');
+  sections.push("");
 
   // ── Recurring Expenses ───────────────────────────────────────────────────
-  sections.push('## Recurring Expenses');
+  sections.push("## Recurring Expenses");
   try {
     const recurrings = await getRecurrings();
-    const active = recurrings.filter((r) => r.state.toUpperCase() === 'ACTIVE');
+    const active = recurrings.filter((r) => r.state.toUpperCase() === "ACTIVE");
 
     if (active.length === 0) {
-      sections.push('_No active recurring expenses_');
+      sections.push("_No active recurring expenses_");
     } else {
       const sorted = [...active].sort((a, b) => {
         const aAmt = Math.abs(a.nextPaymentAmount ?? 0);
@@ -344,28 +351,32 @@ export async function buildFinanceSnapshot(): Promise<void> {
       });
 
       for (const r of sorted) {
-        const amt = r.nextPaymentAmount !== null ? `$${fmt(Math.abs(r.nextPaymentAmount))}` : '?';
-        const freq = r.frequency.toLowerCase() === 'monthly' ? '/mo'
-          : r.frequency.toLowerCase() === 'yearly' || r.frequency.toLowerCase() === 'annually' ? '/yr'
-          : r.frequency.toLowerCase() === 'weekly' ? '/wk'
-          : `/${r.frequency.toLowerCase()}`;
-        const next = r.nextPaymentDate ? ` (next: ${r.nextPaymentDate})` : '';
+        const amt = r.nextPaymentAmount !== null ? `$${fmt(Math.abs(r.nextPaymentAmount))}` : "?";
+        const freq =
+          r.frequency.toLowerCase() === "monthly"
+            ? "/mo"
+            : r.frequency.toLowerCase() === "yearly" || r.frequency.toLowerCase() === "annually"
+              ? "/yr"
+              : r.frequency.toLowerCase() === "weekly"
+                ? "/wk"
+                : `/${r.frequency.toLowerCase()}`;
+        const next = r.nextPaymentDate ? ` (next: ${r.nextPaymentDate})` : "";
         sections.push(`- ${r.name}: ${amt}${freq}${next}`);
       }
     }
   } catch {
-    sections.push('[unavailable]');
+    sections.push("[unavailable]");
   }
 
-  sections.push('');
+  sections.push("");
 
   // ── Write ────────────────────────────────────────────────────────────────
-  const content = sections.join('\n');
+  const content = sections.join("\n");
   const dir = path.dirname(SNAPSHOT_PATH);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  fs.writeFileSync(SNAPSHOT_PATH, content, 'utf8');
+  fs.writeFileSync(SNAPSHOT_PATH, content, "utf8");
 }
 
 export function getSnapshotPath(): string {

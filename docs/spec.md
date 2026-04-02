@@ -179,9 +179,11 @@ Behavior:
 ### `searchTransactions(query) → Transaction[]`
 
 Behavior:
-- Calls `getTransactions({ search: query, limit: 50 })`
+- Fetches the most recent 200 transactions via `getTransactions({ limit: 200 })`
+- Filters client-side by matching `query` against `name` and `userNotes` (case-insensitive)
+- Copilot API has no server-side search; this is the best available approach
 - Returns only the `transactions` array
-- Returns `[]` on failure
+- Returns `[]` on failure or no matches
 
 ## categories
 
@@ -723,6 +725,9 @@ All hardcoded paths are overridable via environment variables for portability:
 | `FINANCE_OS_CRYPTO_KEYS` | `~/.openclaw/secrets/crypto-keys.env` | Crypto API keys env file |
 | `FINANCE_OS_SNAPSHOT_PATH` | `~/.openclaw/workspace/memory/finance-snapshot.md` | Snapshot output path |
 | `FINANCE_OS_AUTH_SCRIPT` | `~/.openclaw/skills/finance/scripts/auth.sh` | Auth script path |
+| `FINANCE_OS_CACHE_DIR` | `~/.openclaw/cache/finance` | DeBank disk cache directory |
+| `FINANCE_OS_REFRESH_TOKEN_PATH` | `~/.openclaw/secrets/copilot-refresh-token` | Firebase refresh token path |
+| `FINANCE_OS_QUIET` | — | Set to `1` to suppress warning output to stderr |
 | `COPILOT_TOKEN` | — | Override bearer token directly (skip file) |
 
 ## Caching

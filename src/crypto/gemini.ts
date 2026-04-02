@@ -12,15 +12,15 @@
  *   POST https://api.gemini.com/v1/notionalbalances/usd
  */
 
-import * as crypto from 'crypto';
-import { getGeminiConfig } from './config';
+import * as crypto from "node:crypto";
+import { getGeminiConfig } from "./config";
 
-const BASE_URL = 'https://api.gemini.com';
+const BASE_URL = "https://api.gemini.com";
 
 export interface GeminiBalance {
-  currency: string;        // e.g. "BTC", "ETH", "USD"
-  amount: number;          // total balance
-  available: number;       // available for trading
+  currency: string; // e.g. "BTC", "ETH", "USD"
+  amount: number; // total balance
+  available: number; // available for trading
   availableForWithdrawal: number;
   usdValue: number | null; // enriched by aggregator or from notional endpoint
 }
@@ -28,12 +28,12 @@ export interface GeminiBalance {
 export class GeminiError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'GeminiError';
+    this.name = "GeminiError";
   }
 }
 
 function sign(payload: string, secret: string): string {
-  return crypto.createHmac('sha384', secret).update(payload).digest('hex');
+  return crypto.createHmac("sha384", secret).update(payload).digest("hex");
 }
 
 export class GeminiClient {
@@ -55,7 +55,7 @@ export class GeminiClient {
 
   private async post<T = unknown>(
     requestPath: string,
-    params: Record<string, unknown> = {}
+    params: Record<string, unknown> = {},
   ): Promise<T> {
     const nonce = this.nextNonce();
     const payloadObj = {
@@ -65,20 +65,20 @@ export class GeminiClient {
     };
 
     const payloadJson = JSON.stringify(payloadObj);
-    const payloadB64 = Buffer.from(payloadJson).toString('base64');
+    const payloadB64 = Buffer.from(payloadJson).toString("base64");
     const signature = sign(payloadB64, this.apiSecret);
 
     let response: Response;
     try {
       response = await fetch(`${BASE_URL}${requestPath}`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'text/plain',
-          'X-GEMINI-APIKEY': this.apiKey,
-          'X-GEMINI-PAYLOAD': payloadB64,
-          'X-GEMINI-SIGNATURE': signature,
-          'User-Agent': 'finance-skill/0.1.0',
-          'Cache-Control': 'no-cache',
+          "Content-Type": "text/plain",
+          "X-GEMINI-APIKEY": this.apiKey,
+          "X-GEMINI-PAYLOAD": payloadB64,
+          "X-GEMINI-SIGNATURE": signature,
+          "User-Agent": "finance-skill/0.1.0",
+          "Cache-Control": "no-cache",
         },
       });
     } catch (err) {
@@ -86,22 +86,30 @@ export class GeminiClient {
     }
 
     if (!response.ok) {
-      let body = '';
-      try { body = await response.text(); } catch { /* ignore */ }
-      throw new GeminiError(`HTTP ${response.status} ${response.statusText}${body ? ': ' + body.slice(0, 200) : ''}`);
+      let body = "";
+      try {
+        body = await response.text();
+      } catch {
+        /* ignore */
+      }
+      throw new GeminiError(
+        `HTTP ${response.status} ${response.statusText}${body ? `: ${body.slice(0, 200)}` : ""}`,
+      );
     }
 
     let json: T;
     try {
       json = (await response.json()) as T;
     } catch {
-      throw new GeminiError('Failed to parse JSON response');
+      throw new GeminiError("Failed to parse JSON response");
     }
 
     // Gemini returns error objects: { result: "error", reason: "...", message: "..." }
     const maybeErr = json as { result?: string; reason?: string; message?: string };
-    if (maybeErr.result === 'error') {
-      throw new GeminiError(`Gemini API error: ${maybeErr.reason ?? maybeErr.message ?? 'unknown'}`);
+    if (maybeErr.result === "error") {
+      throw new GeminiError(
+        `Gemini API error: ${maybeErr.reason ?? maybeErr.message ?? "unknown"}`,
+      );
     }
 
     return json;
@@ -122,7 +130,7 @@ export class GeminiClient {
     };
 
     // Master API keys require account=primary; regular keys ignore this param
-    const result = await this.post<RawBalance[]>('/v1/balances', { account: 'primary' });
+    const result = await this.post<RawBalance[]>("/v1/balances", { account: "primary" });
 
     return (Array.isArray(result) ? result : [])
       .map((b) => ({
@@ -139,13 +147,15 @@ export class GeminiClient {
    * Get notional (USD) balances — Gemini's own USD conversion.
    * Useful as a cross-check or fallback for USD values.
    */
-  async getNotionalBalances(): Promise<Array<{
-    currency: string;
-    amount: number;
-    amountNotional: number;
-    available: number;
-    availableNotional: number;
-  }>> {
+  async getNotionalBalances(): Promise<
+    Array<{
+      currency: string;
+      amount: number;
+      amountNotional: number;
+      available: number;
+      availableNotional: number;
+    }>
+  > {
     type RawNotional = {
       currency: string;
       amount: string;
@@ -154,7 +164,9 @@ export class GeminiClient {
       availableNotional: string;
     };
 
-    const result = await this.post<RawNotional[]>('/v1/notionalbalances/usd', { account: 'primary' });
+    const result = await this.post<RawNotional[]>("/v1/notionalbalances/usd", {
+      account: "primary",
+    });
 
     return (Array.isArray(result) ? result : [])
       .map((b) => ({

@@ -5,4 +5,5 @@ dist/
 .DS_Store
 .env
 *.env
+package-lock.json
 !tests/fixtures/*.json

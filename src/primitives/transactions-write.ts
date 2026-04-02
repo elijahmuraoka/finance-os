@@ -4,15 +4,12 @@
  * All write operations are dry-run by default.
  * Pass confirm=true to execute the GraphQL mutation.
  */
-import { getClient, CopilotError } from '../client';
-import {
-  CREATE_TRANSACTION_MUTATION,
-  DELETE_TRANSACTION_MUTATION,
-} from '../queries';
+import { CopilotError, getClient } from "../client";
+import { CREATE_TRANSACTION_MUTATION, DELETE_TRANSACTION_MUTATION } from "../queries";
 
 function dryRun(message: string): void {
   process.stdout.write(`[dry-run] ${message}\n`);
-  process.stdout.write('  (Pass --confirm to execute this mutation)\n');
+  process.stdout.write("  (Pass --confirm to execute this mutation)\n");
 }
 
 export interface CreateTransactionOpts {
@@ -40,18 +37,18 @@ interface DeleteTransactionData {
 
 export async function createTransaction(
   opts: CreateTransactionOpts,
-  confirm = false
+  confirm = false,
 ): Promise<{ id: string; name: string; amount: number; date: string } | null> {
   if (!confirm) {
     dryRun(
-      `Would create transaction "${opts.name}" for $${Math.abs(opts.amount).toFixed(2)} on ${opts.date} in account ${opts.accountId}`
+      `Would create transaction "${opts.name}" for $${Math.abs(opts.amount).toFixed(2)} on ${opts.date} in account ${opts.accountId}`,
     );
     return null;
   }
 
   try {
     const data = await getClient().graphql<CreateTransactionData>(
-      'CreateTransaction',
+      "CreateTransaction",
       CREATE_TRANSACTION_MUTATION,
       {
         accountId: opts.accountId,
@@ -61,16 +58,16 @@ export async function createTransaction(
           name: opts.name,
           date: opts.date,
         },
-      }
+      },
     );
 
     const created = data?.createTransaction;
     if (!created) {
-      throw new CopilotError('CreateTransaction returned no data');
+      throw new CopilotError("CreateTransaction returned no data");
     }
 
     process.stdout.write(
-      `✓ Created transaction "${created.name}" (${created.id}) — $${Math.abs(created.amount).toFixed(2)} on ${created.date}\n`
+      `✓ Created transaction "${created.name}" (${created.id}) — $${Math.abs(created.amount).toFixed(2)} on ${created.date}\n`,
     );
     return {
       id: created.id,
@@ -87,7 +84,7 @@ export async function deleteTransaction(
   itemId: string,
   accountId: string,
   id: string,
-  confirm = false
+  confirm = false,
 ): Promise<void> {
   if (!confirm) {
     dryRun(`Would delete transaction ${id}`);
@@ -96,9 +93,9 @@ export async function deleteTransaction(
 
   try {
     await getClient().graphql<DeleteTransactionData>(
-      'DeleteTransaction',
+      "DeleteTransaction",
       DELETE_TRANSACTION_MUTATION,
-      { itemId, accountId, id }
+      { itemId, accountId, id },
     );
 
     process.stdout.write(`✓ Deleted transaction ${id}\n`);

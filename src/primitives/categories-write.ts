@@ -4,16 +4,16 @@
  * All write operations are dry-run by default.
  * Pass confirm=true to execute the GraphQL mutation.
  */
-import { getClient, CopilotError } from '../client';
+import { CopilotError, getClient } from "../client";
 import {
   CREATE_CATEGORY_MUTATION,
-  EDIT_CATEGORY_MUTATION,
   DELETE_CATEGORY_MUTATION,
-} from '../queries';
+  EDIT_CATEGORY_MUTATION,
+} from "../queries";
 
 function dryRun(message: string): void {
   process.stdout.write(`[dry-run] ${message}\n`);
-  process.stdout.write('  (Pass --confirm to execute this mutation)\n');
+  process.stdout.write("  (Pass --confirm to execute this mutation)\n");
 }
 
 export interface CreateCategoryOpts {
@@ -51,31 +51,33 @@ interface DeleteCategoryData {
 export async function createCategory(
   name: string,
   opts: CreateCategoryOpts = {},
-  confirm = false
+  confirm = false,
 ): Promise<CategoryResult | null> {
   if (!confirm) {
     const extras = [
       opts.colorName ? `color=${opts.colorName}` : null,
-      opts.isExcluded ? 'excluded=true' : null,
-    ].filter(Boolean).join(', ');
-    dryRun(`Would create category "${name}"${extras ? ` (${extras})` : ''}`);
+      opts.isExcluded ? "excluded=true" : null,
+    ]
+      .filter(Boolean)
+      .join(", ");
+    dryRun(`Would create category "${name}"${extras ? ` (${extras})` : ""}`);
     return null;
   }
 
   try {
     const input: Record<string, unknown> = { name };
-    if (opts.colorName) input['colorName'] = opts.colorName;
-    if (opts.isExcluded !== undefined) input['isExcluded'] = opts.isExcluded;
+    if (opts.colorName) input.colorName = opts.colorName;
+    if (opts.isExcluded !== undefined) input.isExcluded = opts.isExcluded;
 
     const data = await getClient().graphql<CreateCategoryData>(
-      'CreateCategory',
+      "CreateCategory",
       CREATE_CATEGORY_MUTATION,
-      { input }
+      { input },
     );
 
     const created = data?.createCategory;
     if (!created) {
-      throw new CopilotError('CreateCategory returned no data');
+      throw new CopilotError("CreateCategory returned no data");
     }
 
     process.stdout.write(`✓ Created category "${created.name}" (${created.id})\n`);
@@ -88,33 +90,35 @@ export async function createCategory(
 export async function editCategory(
   id: string,
   opts: EditCategoryOpts = {},
-  confirm = false
+  confirm = false,
 ): Promise<CategoryResult | null> {
   if (!confirm) {
     const changes = [
       opts.name ? `name="${opts.name}"` : null,
       opts.colorName ? `color=${opts.colorName}` : null,
       opts.isExcluded !== undefined ? `excluded=${opts.isExcluded}` : null,
-    ].filter(Boolean).join(', ');
-    dryRun(`Would edit category ${id}: ${changes || 'no changes'}`);
+    ]
+      .filter(Boolean)
+      .join(", ");
+    dryRun(`Would edit category ${id}: ${changes || "no changes"}`);
     return null;
   }
 
   try {
     const input: Record<string, unknown> = {};
-    if (opts.name) input['name'] = opts.name;
-    if (opts.colorName) input['colorName'] = opts.colorName;
-    if (opts.isExcluded !== undefined) input['isExcluded'] = opts.isExcluded;
+    if (opts.name) input.name = opts.name;
+    if (opts.colorName) input.colorName = opts.colorName;
+    if (opts.isExcluded !== undefined) input.isExcluded = opts.isExcluded;
 
     const data = await getClient().graphql<EditCategoryData>(
-      'EditCategory',
+      "EditCategory",
       EDIT_CATEGORY_MUTATION,
-      { id, input }
+      { id, input },
     );
 
     const updated = data?.editCategory?.category;
     if (!updated) {
-      throw new CopilotError('EditCategory returned no data');
+      throw new CopilotError("EditCategory returned no data");
     }
 
     process.stdout.write(`✓ Updated category "${updated.name}" (${updated.id})\n`);
@@ -124,21 +128,16 @@ export async function editCategory(
   }
 }
 
-export async function deleteCategory(
-  id: string,
-  confirm = false
-): Promise<void> {
+export async function deleteCategory(id: string, confirm = false): Promise<void> {
   if (!confirm) {
     dryRun(`Would delete category ${id}`);
     return;
   }
 
   try {
-    await getClient().graphql<DeleteCategoryData>(
-      'DeleteCategory',
-      DELETE_CATEGORY_MUTATION,
-      { id }
-    );
+    await getClient().graphql<DeleteCategoryData>("DeleteCategory", DELETE_CATEGORY_MUTATION, {
+      id,
+    });
 
     process.stdout.write(`✓ Deleted category ${id}\n`);
   } catch (err) {

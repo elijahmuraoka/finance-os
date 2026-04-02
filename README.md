@@ -12,7 +12,7 @@ A comprehensive CLI for personal finance management. Connects to Copilot Money, 
 - **Transaction management** — categorize, review, tag, create, delete
 - **Recurring detection** — track subscriptions and recurring expenses
 - **Export** — CSV download of all transactions
-- **99 tests** — full fixture-based test suite
+- **107 tests** — full fixture-based test suite with error recovery coverage
 
 ## Prerequisites
 
@@ -73,7 +73,7 @@ bun run dist/cli.js doctor
 |---|---|
 | `accounts` | List all connected accounts with balances |
 | `balances` | Simplified balance summary sorted by type |
-| `transactions [--limit N] [--unreviewed] [--search TEXT]` | Transaction list with filters |
+| `transactions [--limit N] [--unreviewed] [--search TEXT]` | Transaction list with filters. Search queries the most recent 200 transactions client-side (Copilot API has no server-side search) |
 | `categories` | All spending categories |
 | `spending [--month YYYY-MM]` | Spending by category |
 | `budget [--month YYYY-MM]` | Budget status per category |
@@ -124,11 +124,17 @@ bun run dist/cli.js doctor
 
 ```
 src/
-  cli.ts              ← CLI router (39 commands)
+  cli.ts              ← Thin CLI router — parses command, delegates
+  utils.ts            ← Shared helpers (parseArgs, outputJson, fmtUsd, etc.)
+  logger.ts           ← Structured logging (supports --quiet / FINANCE_OS_QUIET)
   client.ts           ← GraphQL client (auto-refresh on 401)
   queries.ts          ← All GraphQL queries + mutations
   context-loader.ts   ← Builds markdown snapshot
-  primitives/         ← One file per domain
+  commands/           ← One file per command group
+    accounts.ts, transactions.ts, categories.ts,
+    budgets.ts, networth.ts, investments.ts,
+    crypto.ts, tags.ts, recurring.ts, doctor.ts, misc.ts
+  primitives/         ← One file per domain (data layer)
     accounts.ts, transactions.ts, categories.ts,
     budgets.ts, networth.ts, write.ts, holdings.ts,
     investments.ts, tags.ts, recurring.ts, ...
@@ -141,7 +147,7 @@ scripts/
   auth.sh             ← Copilot auth (Playwright + Firebase refresh)
   get_token.py        ← Bearer token capture
   get_refresh_token.py ← Firebase refresh token extraction
-tests/                ← 99 unit tests (fixture-based, offline)
+tests/                ← 107 unit tests (fixture-based, offline)
 docs/spec.md          ← Full behavioral specification
 ```
 
@@ -163,7 +169,10 @@ Firebase refresh tokens don't expire unless you explicitly sign out of Copilot e
 | `FINANCE_OS_CRYPTO_KEYS` | `~/.openclaw/secrets/crypto-keys.env` | Crypto API keys |
 | `FINANCE_OS_SNAPSHOT_PATH` | `~/.openclaw/workspace/memory/finance-snapshot.md` | Snapshot output |
 | `FINANCE_OS_AUTH_SCRIPT` | `~/.openclaw/skills/finance/scripts/auth.sh` | Auth script path |
-| `COPILOT_TOKEN` | — | Override token directly |
+| `FINANCE_OS_CACHE_DIR` | `~/.openclaw/cache/finance` | DeBank cache directory |
+| `FINANCE_OS_REFRESH_TOKEN_PATH` | `~/.openclaw/secrets/copilot-refresh-token` | Firebase refresh token |
+| `FINANCE_OS_QUIET` | — | Set to `1` to suppress warnings |
+| `COPILOT_TOKEN` | — | Override bearer token directly |
 
 ## License
 

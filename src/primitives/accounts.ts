@@ -1,8 +1,9 @@
 /**
  * accounts.ts — Account read primitives
  */
-import { getClient } from '../client';
-import { ACCOUNTS_QUERY } from '../queries';
+import { getClient } from "../client";
+import { warn } from "../logger";
+import { ACCOUNTS_QUERY } from "../queries";
 
 export interface Account {
   id: string;
@@ -53,11 +54,7 @@ interface AccountsResponse {
 
 export async function getAccounts(includeHidden = false): Promise<Account[]> {
   try {
-    const data = await getClient().graphql<AccountsResponse>(
-      'Accounts',
-      ACCOUNTS_QUERY,
-      {}
-    );
+    const data = await getClient().graphql<AccountsResponse>("Accounts", ACCOUNTS_QUERY, {});
 
     const accounts = data?.accounts ?? [];
     return accounts
@@ -78,7 +75,7 @@ export async function getAccounts(includeHidden = false): Promise<Account[]> {
         color: a.color ?? null,
       }));
   } catch (err) {
-    console.warn(`[accounts] Warning: ${(err as Error).message}`);
+    warn("accounts", (err as Error).message);
     return [];
   }
 }
@@ -98,9 +95,9 @@ export async function getAccountBalances(): Promise<AccountBalance[]> {
 }
 
 export function formatAccountsTable(accounts: Account[]): string {
-  if (accounts.length === 0) return 'No accounts found.';
+  if (accounts.length === 0) return "No accounts found.";
 
-  const lines: string[] = ['Accounts:', ''];
+  const lines: string[] = ["Accounts:", ""];
   const byType: Record<string, Account[]> = {};
   for (const a of accounts) {
     if (!byType[a.type]) byType[a.type] = [];
@@ -111,12 +108,12 @@ export function formatAccountsTable(accounts: Account[]): string {
     lines.push(`  ${type.toUpperCase()}`);
     for (const a of accts) {
       const bal = a.balance.toFixed(2);
-      const mask = a.mask ? ` (...${a.mask})` : '';
-      const manual = a.isManual ? ' [manual]' : '';
+      const mask = a.mask ? ` (...${a.mask})` : "";
+      const manual = a.isManual ? " [manual]" : "";
       lines.push(`    ${a.name}${mask}${manual}: $${bal}`);
     }
-    lines.push('');
+    lines.push("");
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }

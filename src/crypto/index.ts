@@ -6,10 +6,10 @@
  * with error fields when sources fail.
  */
 
-import { createKrakenClient, KrakenBalance, KrakenError } from './kraken';
-import { createGeminiClient, GeminiBalance, GeminiError } from './gemini';
-import { getAllOnchainBalances, getUsdPrices, OnchainSnapshot } from './onchain';
-import { getKrakenConfig, getGeminiConfig, getOnchainConfig } from './config';
+import { getGeminiConfig, getKrakenConfig, getOnchainConfig } from "./config";
+import { createGeminiClient, type GeminiBalance, GeminiError } from "./gemini";
+import { createKrakenClient, type KrakenBalance, KrakenError } from "./kraken";
+import { getAllOnchainBalances, getUsdPrices, type OnchainSnapshot } from "./onchain";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -17,12 +17,12 @@ export interface HoldingSummary {
   symbol: string;
   totalAmount: number;
   usdValue: number;
-  pct: number;        // % of total crypto portfolio
-  sources: string[];  // which exchanges/wallets hold this asset
+  pct: number; // % of total crypto portfolio
+  sources: string[]; // which exchanges/wallets hold this asset
 }
 
 export interface CryptoSnapshot {
-  fetchedAt: string;  // ISO timestamp
+  fetchedAt: string; // ISO timestamp
   exchanges: {
     kraken: KrakenBalance[] | null;
     krakenError: string | null;
@@ -36,14 +36,14 @@ export interface CryptoSnapshot {
     exchangeUsd: number;
     onchainUsd: number;
     byAsset: Record<string, { amount: number; usdValue: number; sources: string[] }>;
-    topHoldings: HoldingSummary[];  // top 5 by USD value
+    topHoldings: HoldingSummary[]; // top 5 by USD value
   };
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 /** Map of well-known USD stablecoins — price is always $1 */
-const USD_STABLES = new Set(['USD', 'USDC', 'USDT', 'DAI', 'BUSD', 'GUSD', 'PYUSD', 'FDUSD']);
+const USD_STABLES = new Set(["USD", "USDC", "USDT", "DAI", "BUSD", "GUSD", "PYUSD", "FDUSD"]);
 
 function isStable(symbol: string): boolean {
   return USD_STABLES.has(symbol.toUpperCase());
@@ -55,7 +55,7 @@ function mergeAsset(
   symbol: string,
   amount: number,
   usdValue: number,
-  source: string
+  source: string,
 ): void {
   const key = symbol.toUpperCase();
   if (!byAsset[key]) {
@@ -78,7 +78,9 @@ async function enrichKrakenBalances(balances: KrakenBalance[]): Promise<KrakenBa
     ...b,
     usdValue: isStable(b.asset)
       ? b.balance
-      : (prices[b.asset] !== undefined ? b.balance * prices[b.asset] : null),
+      : prices[b.asset] !== undefined
+        ? b.balance * prices[b.asset]
+        : null,
   }));
 }
 
@@ -90,7 +92,9 @@ async function enrichGeminiBalances(balances: GeminiBalance[]): Promise<GeminiBa
     ...b,
     usdValue: isStable(b.currency)
       ? b.amount
-      : (prices[b.currency] !== undefined ? b.amount * prices[b.currency] : null),
+      : prices[b.currency] !== undefined
+        ? b.amount * prices[b.currency]
+        : null,
   }));
 }
 
@@ -110,20 +114,20 @@ export async function getCryptoSnapshot(): Promise<CryptoSnapshot> {
 
   const krakenConfig = getKrakenConfig();
   if (!krakenConfig.configured) {
-    krakenError = 'Kraken keys not configured — set KRAKEN_API_KEY + KRAKEN_API_SECRET';
+    krakenError = "Kraken keys not configured — set KRAKEN_API_KEY + KRAKEN_API_SECRET";
   } else {
     try {
-      const client = createKrakenClient()!;
+      const client = createKrakenClient();
+      if (!client) throw new Error("Kraken client creation failed despite configured keys");
       const raw = await client.getBalances();
       krakenBalances = await enrichKrakenBalances(raw);
 
       for (const b of krakenBalances) {
-        mergeAsset(byAsset, b.asset, b.balance, b.usdValue ?? 0, 'kraken');
+        mergeAsset(byAsset, b.asset, b.balance, b.usdValue ?? 0, "kraken");
       }
     } catch (err) {
-      krakenError = err instanceof KrakenError
-        ? err.message
-        : `Kraken error: ${(err as Error).message}`;
+      krakenError =
+        err instanceof KrakenError ? err.message : `Kraken error: ${(err as Error).message}`;
     }
   }
 
@@ -133,20 +137,20 @@ export async function getCryptoSnapshot(): Promise<CryptoSnapshot> {
 
   const geminiConfig = getGeminiConfig();
   if (!geminiConfig.configured) {
-    geminiError = 'Gemini keys not configured — set GEMINI_API_KEY + GEMINI_API_SECRET';
+    geminiError = "Gemini keys not configured — set GEMINI_API_KEY + GEMINI_API_SECRET";
   } else {
     try {
-      const client = createGeminiClient()!;
+      const client = createGeminiClient();
+      if (!client) throw new Error("Gemini client creation failed despite configured keys");
       const raw = await client.getBalances();
       geminiBalances = await enrichGeminiBalances(raw);
 
       for (const b of geminiBalances) {
-        mergeAsset(byAsset, b.currency, b.amount, b.usdValue ?? 0, 'gemini');
+        mergeAsset(byAsset, b.currency, b.amount, b.usdValue ?? 0, "gemini");
       }
     } catch (err) {
-      geminiError = err instanceof GeminiError
-        ? err.message
-        : `Gemini error: ${(err as Error).message}`;
+      geminiError =
+        err instanceof GeminiError ? err.message : `Gemini error: ${(err as Error).message}`;
     }
   }
 
@@ -156,20 +160,27 @@ export async function getCryptoSnapshot(): Promise<CryptoSnapshot> {
 
   const onchainConfig = getOnchainConfig();
   if (onchainConfig.ethAddresses.length === 0 && !onchainConfig.solAddress) {
-    onchainError = 'No wallet addresses configured — set RABBY_ETH_ADDRESS_MAIN and/or RABBY_SOL_ADDRESS';
+    onchainError =
+      "No wallet addresses configured — set RABBY_ETH_ADDRESS_MAIN and/or RABBY_SOL_ADDRESS";
   } else {
     try {
       onchain = await getAllOnchainBalances();
 
       // ethereum is now an array of wallets (each with mainnet + extra EVM chains)
       for (const wallet of onchain.ethereum) {
-        mergeAsset(byAsset, 'ETH', wallet.eth, wallet.ethUsd, 'wallet');
+        mergeAsset(byAsset, "ETH", wallet.eth, wallet.ethUsd, "wallet");
         for (const t of wallet.tokens) {
-          mergeAsset(byAsset, t.symbol, t.balance, t.usdValue ?? 0, 'wallet');
+          mergeAsset(byAsset, t.symbol, t.balance, t.usdValue ?? 0, "wallet");
         }
         for (const chain of wallet.extraChains) {
           if (chain.nativeBalance > 0) {
-            mergeAsset(byAsset, chain.nativeSymbol, chain.nativeBalance, chain.nativeUsd, chain.chainId);
+            mergeAsset(
+              byAsset,
+              chain.nativeSymbol,
+              chain.nativeBalance,
+              chain.nativeUsd,
+              chain.chainId,
+            );
           }
           for (const t of chain.tokens) {
             mergeAsset(byAsset, t.symbol, t.balance, t.usdValue ?? 0, chain.chainId);
@@ -177,13 +188,13 @@ export async function getCryptoSnapshot(): Promise<CryptoSnapshot> {
         }
       }
       if (onchain.solana) {
-        mergeAsset(byAsset, 'SOL', onchain.solana.sol, onchain.solana.solUsd, 'wallet');
+        mergeAsset(byAsset, "SOL", onchain.solana.sol, onchain.solana.solUsd, "wallet");
         for (const t of onchain.solana.tokens) {
-          mergeAsset(byAsset, t.symbol, t.balance, t.usdValue ?? 0, 'wallet');
+          mergeAsset(byAsset, t.symbol, t.balance, t.usdValue ?? 0, "wallet");
         }
       }
       if (onchain.errors.length > 0) {
-        onchainError = onchain.errors.join('; ');
+        onchainError = onchain.errors.join("; ");
       }
     } catch (err) {
       onchainError = `On-chain error: ${(err as Error).message}`;

@@ -1,8 +1,9 @@
 /**
  * budgets.ts — Budget read primitives
  */
-import { getClient } from '../client';
-import { CATEGORIES_QUERY, MONTHLY_SPEND_QUERY, SPENDS_QUERY } from '../queries';
+import { getClient } from "../client";
+import { warn } from "../logger";
+import { CATEGORIES_QUERY, MONTHLY_SPEND_QUERY, SPENDS_QUERY } from "../queries";
 
 export interface BudgetStatus {
   categoryId: string;
@@ -99,7 +100,7 @@ interface SpendsData {
 function getCurrentMonth(): string {
   const now = new Date();
   const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const month = String(now.getMonth() + 1).padStart(2, "0");
   return `${year}-${month}`;
 }
 
@@ -107,11 +108,11 @@ export async function getBudgetStatus(month?: string): Promise<BudgetStatus[]> {
   try {
     const targetMonth = month ?? getCurrentMonth();
 
-    const data = await getClient().graphql<CategoriesData>(
-      'Categories',
-      CATEGORIES_QUERY,
-      { spend: true, budget: true, rollovers: null }
-    );
+    const data = await getClient().graphql<CategoriesData>("Categories", CATEGORIES_QUERY, {
+      spend: true,
+      budget: true,
+      rollovers: null,
+    });
 
     const categories = data?.categories ?? [];
     const result: BudgetStatus[] = [];
@@ -122,12 +123,12 @@ export async function getBudgetStatus(month?: string): Promise<BudgetStatus[]> {
       const spendMonthly =
         cat.spend?.current?.month === targetMonth
           ? cat.spend.current
-          : cat.spend?.histories?.find((h) => h.month === targetMonth) ?? null;
+          : (cat.spend?.histories?.find((h) => h.month === targetMonth) ?? null);
 
       const budgetMonthly =
         cat.budget?.current?.month === targetMonth
           ? cat.budget.current
-          : cat.budget?.histories?.find((h) => h.month === targetMonth) ?? null;
+          : (cat.budget?.histories?.find((h) => h.month === targetMonth) ?? null);
 
       const actual = spendMonthly?.amount ?? 0;
       const budgeted = budgetMonthly?.resolvedAmount ?? budgetMonthly?.amount ?? 0;
@@ -163,7 +164,7 @@ export async function getBudgetStatus(month?: string): Promise<BudgetStatus[]> {
       return b.actual - a.actual;
     });
   } catch (err) {
-    console.warn(`[budgets] Warning: ${(err as Error).message}`);
+    warn("budgets", (err as Error).message);
     return [];
   }
 }
@@ -174,9 +175,9 @@ export async function getMonthlySpend(month?: string): Promise<MonthlySpend> {
   try {
     // Try MonthlySpend query first — gives aggregate totals
     const data = await getClient().graphql<MonthlySpendData>(
-      'MonthlySpend',
+      "MonthlySpend",
       MONTHLY_SPEND_QUERY,
-      {}
+      {},
     );
 
     const spending = data?.monthlySpending ?? [];
@@ -198,18 +199,14 @@ export async function getMonthlySpend(month?: string): Promise<MonthlySpend> {
     // Fallback: derive from Spends query
     return await getMonthlySpendFromSpends(targetMonth);
   } catch (err) {
-    console.warn(`[budgets] getMonthlySpend warning: ${(err as Error).message}`);
+    warn("budgets", `getMonthlySpend: ${(err as Error).message}`);
     return { total: 0, budgeted: null, remaining: null, month: targetMonth };
   }
 }
 
 async function getMonthlySpendFromSpends(targetMonth: string): Promise<MonthlySpend> {
   try {
-    const data = await getClient().graphql<SpendsData>(
-      'Spends',
-      SPENDS_QUERY,
-      { history: true }
-    );
+    const data = await getClient().graphql<SpendsData>("Spends", SPENDS_QUERY, { history: true });
 
     const spend = data?.categoriesTotal?.spend;
     if (!spend) {
@@ -219,7 +216,7 @@ async function getMonthlySpendFromSpends(targetMonth: string): Promise<MonthlySp
     const monthly =
       spend.current?.month === targetMonth
         ? spend.current
-        : spend.histories?.find((h) => h.month === targetMonth) ?? null;
+        : (spend.histories?.find((h) => h.month === targetMonth) ?? null);
 
     return {
       total: monthly?.amount ?? 0,
@@ -236,37 +233,36 @@ async function getMonthlySpendFromSpends(targetMonth: string): Promise<MonthlySp
 }
 
 export function formatBudgetTable(budgets: BudgetStatus[]): string {
-  if (budgets.length === 0) return 'No budget data found.';
+  if (budgets.length === 0) return "No budget data found.";
 
-  const month = budgets[0]?.month ?? '';
-  const lines: string[] = [`Budget Status (${month}):`, ''];
+  const month = budgets[0]?.month ?? "";
+  const lines: string[] = [`Budget Status (${month}):`, ""];
 
   for (const b of budgets) {
     const pct = b.budgeted > 0 ? Math.round((b.actual / b.budgeted) * 100) : null;
-    const pctStr = pct !== null ? ` (${pct}%)` : '';
-    const status = b.isOverBudget ? '⚠️ ' : '  ';
-    const remaining =
-      b.isOverBudget
-        ? ` OVER $${Math.abs(b.remaining).toFixed(2)}`
-        : ` $${b.remaining.toFixed(2)} left`;
+    const pctStr = pct !== null ? ` (${pct}%)` : "";
+    const status = b.isOverBudget ? "⚠️ " : "  ";
+    const remaining = b.isOverBudget
+      ? ` OVER $${Math.abs(b.remaining).toFixed(2)}`
+      : ` $${b.remaining.toFixed(2)} left`;
     lines.push(
-      `${status}${b.categoryName}: $${b.actual.toFixed(2)} / $${b.budgeted.toFixed(2)}${pctStr}${remaining}`
+      `${status}${b.categoryName}: $${b.actual.toFixed(2)} / $${b.budgeted.toFixed(2)}${pctStr}${remaining}`,
     );
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 export function formatMonthlySpendSummary(spend: MonthlySpend): string {
-  const lines: string[] = [`Monthly Spend (${spend.month}):`, ''];
+  const lines: string[] = [`Monthly Spend (${spend.month}):`, ""];
   lines.push(`  Total spent: $${spend.total.toFixed(2)}`);
   if (spend.budgeted !== null) {
     lines.push(`  Budget: $${spend.budgeted.toFixed(2)}`);
   }
   if (spend.remaining !== null) {
     const over = spend.remaining < 0;
-    const label = over ? 'Over budget by' : 'Remaining';
+    const label = over ? "Over budget by" : "Remaining";
     lines.push(`  ${label}: $${Math.abs(spend.remaining).toFixed(2)}`);
   }
-  return lines.join('\n');
+  return lines.join("\n");
 }

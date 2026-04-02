@@ -1,8 +1,9 @@
 /**
  * recurring.ts — Recurring transactions (subscriptions) read primitives
  */
-import { getClient } from '../client';
-import { RECURRINGS_QUERY, RECURRING_KEY_METRICS_QUERY } from '../queries';
+import { getClient } from "../client";
+import { warn } from "../logger";
+import { RECURRING_KEY_METRICS_QUERY, RECURRINGS_QUERY } from "../queries";
 
 export interface RecurringPayment {
   amount: number;
@@ -72,34 +73,32 @@ interface RecurringKeyMetricsData {
 
 export async function getRecurrings(): Promise<Recurring[]> {
   try {
-    const data = await getClient().graphql<RecurringsData>(
-      'Recurrings',
-      RECURRINGS_QUERY,
-      {}
-    );
+    const data = await getClient().graphql<RecurringsData>("Recurrings", RECURRINGS_QUERY, {});
 
     return (data?.recurrings ?? []).map((r) => ({
-      id: r.id ?? '',
-      name: r.name ?? '',
-      frequency: r.frequency ?? '',
-      state: r.state ?? '',
+      id: r.id ?? "",
+      name: r.name ?? "",
+      frequency: r.frequency ?? "",
+      state: r.state ?? "",
       nextPaymentAmount: r.nextPaymentAmount ?? null,
       nextPaymentDate: r.nextPaymentDate ?? null,
       categoryId: r.categoryId ?? null,
-      rule: r.rule ? {
-        nameContains: r.rule.nameContains ?? null,
-        minAmount: r.rule.minAmount ?? null,
-        maxAmount: r.rule.maxAmount ?? null,
-        days: r.rule.days ?? null,
-      } : null,
+      rule: r.rule
+        ? {
+            nameContains: r.rule.nameContains ?? null,
+            minAmount: r.rule.minAmount ?? null,
+            maxAmount: r.rule.maxAmount ?? null,
+            days: r.rule.days ?? null,
+          }
+        : null,
       payments: (r.payments ?? []).map((p) => ({
         amount: p.amount ?? 0,
         isPaid: p.isPaid ?? false,
-        date: p.date ?? '',
+        date: p.date ?? "",
       })),
     }));
   } catch (err) {
-    console.warn(`[recurring] Warning: ${(err as Error).message}`);
+    warn("recurring", (err as Error).message);
     return [];
   }
 }
@@ -107,9 +106,9 @@ export async function getRecurrings(): Promise<Recurring[]> {
 export async function getRecurringMetrics(id: string): Promise<RecurringKeyMetrics | null> {
   try {
     const data = await getClient().graphql<RecurringKeyMetricsData>(
-      'RecurringKeyMetrics',
+      "RecurringKeyMetrics",
       RECURRING_KEY_METRICS_QUERY,
-      { id }
+      { id },
     );
 
     const metrics = data?.recurring?.keyMetrics;
@@ -121,48 +120,54 @@ export async function getRecurringMetrics(id: string): Promise<RecurringKeyMetri
       period: metrics.period ?? null,
     };
   } catch (err) {
-    console.warn(`[recurring] Warning: ${(err as Error).message}`);
+    warn("recurring", (err as Error).message);
     return null;
   }
 }
 
 function fmtFrequency(freq: string): string {
   switch (freq.toUpperCase()) {
-    case 'MONTHLY': return '/mo';
-    case 'WEEKLY': return '/wk';
-    case 'BIWEEKLY': return '/2wk';
-    case 'YEARLY': case 'ANNUALLY': return '/yr';
-    case 'QUARTERLY': return '/qtr';
-    default: return `/${freq.toLowerCase()}`;
+    case "MONTHLY":
+      return "/mo";
+    case "WEEKLY":
+      return "/wk";
+    case "BIWEEKLY":
+      return "/2wk";
+    case "YEARLY":
+    case "ANNUALLY":
+      return "/yr";
+    case "QUARTERLY":
+      return "/qtr";
+    default:
+      return `/${freq.toLowerCase()}`;
   }
 }
 
 export function formatRecurringsTable(recurrings: Recurring[]): string {
-  if (recurrings.length === 0) return 'No recurring transactions found.';
+  if (recurrings.length === 0) return "No recurring transactions found.";
 
-  const lines: string[] = [`Recurring Transactions (${recurrings.length}):`, ''];
+  const lines: string[] = [`Recurring Transactions (${recurrings.length}):`, ""];
 
-  const active = recurrings.filter((r) => r.state.toUpperCase() === 'ACTIVE');
-  const inactive = recurrings.filter((r) => r.state.toUpperCase() !== 'ACTIVE');
+  const active = recurrings.filter((r) => r.state.toUpperCase() === "ACTIVE");
+  const inactive = recurrings.filter((r) => r.state.toUpperCase() !== "ACTIVE");
 
   if (active.length > 0) {
-    lines.push('  Active:');
+    lines.push("  Active:");
     for (const r of active) {
-      const amt = r.nextPaymentAmount !== null
-        ? `$${Math.abs(r.nextPaymentAmount).toFixed(2)}`
-        : '?';
-      const next = r.nextPaymentDate ? ` (next: ${r.nextPaymentDate})` : '';
+      const amt =
+        r.nextPaymentAmount !== null ? `$${Math.abs(r.nextPaymentAmount).toFixed(2)}` : "?";
+      const next = r.nextPaymentDate ? ` (next: ${r.nextPaymentDate})` : "";
       lines.push(`    ${r.name}: ${amt}${fmtFrequency(r.frequency)}${next}`);
     }
   }
 
   if (inactive.length > 0) {
-    if (active.length > 0) lines.push('');
-    lines.push('  Inactive/Paused:');
+    if (active.length > 0) lines.push("");
+    lines.push("  Inactive/Paused:");
     for (const r of inactive) {
       lines.push(`    ${r.name} [${r.state.toLowerCase()}]`);
     }
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }

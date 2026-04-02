@@ -1,8 +1,9 @@
 /**
  * categories.ts — Category read primitives
  */
-import { getClient } from '../client';
-import { CATEGORIES_QUERY } from '../queries';
+import { getClient } from "../client";
+import { warn } from "../logger";
+import { CATEGORIES_QUERY } from "../queries";
 
 export interface Category {
   id: string;
@@ -88,19 +89,13 @@ function mapCategory(raw: RawCategory, parentId?: string): Category {
   };
 }
 
-export async function getCategories(
-  opts: GetCategoriesOpts = {}
-): Promise<Category[]> {
+export async function getCategories(opts: GetCategoriesOpts = {}): Promise<Category[]> {
   try {
-    const data = await getClient().graphql<CategoriesData>(
-      'Categories',
-      CATEGORIES_QUERY,
-      {
-        spend: opts.withSpend ?? false,
-        budget: opts.withBudget ?? false,
-        rollovers: null,
-      }
-    );
+    const data = await getClient().graphql<CategoriesData>("Categories", CATEGORIES_QUERY, {
+      spend: opts.withSpend ?? false,
+      budget: opts.withBudget ?? false,
+      rollovers: null,
+    });
 
     const raw = data?.categories ?? [];
     const result: Category[] = [];
@@ -114,22 +109,20 @@ export async function getCategories(
 
     return result;
   } catch (err) {
-    console.warn(`[categories] Warning: ${(err as Error).message}`);
+    warn("categories", (err as Error).message);
     return [];
   }
 }
 
-export async function getSpendingByCategory(
-  month?: string
-): Promise<SpendingByCategory[]> {
+export async function getSpendingByCategory(month?: string): Promise<SpendingByCategory[]> {
   try {
     const targetMonth = month ?? getCurrentMonth();
 
-    const data = await getClient().graphql<CategoriesData>(
-      'Categories',
-      CATEGORIES_QUERY,
-      { spend: true, budget: true, rollovers: null }
-    );
+    const data = await getClient().graphql<CategoriesData>("Categories", CATEGORIES_QUERY, {
+      spend: true,
+      budget: true,
+      rollovers: null,
+    });
 
     const raw = data?.categories ?? [];
     const result: SpendingByCategory[] = [];
@@ -139,12 +132,12 @@ export async function getSpendingByCategory(
       const spendMonthly =
         cat.spend?.current?.month === targetMonth
           ? cat.spend.current
-          : cat.spend?.histories?.find((h) => h.month === targetMonth) ?? null;
+          : (cat.spend?.histories?.find((h) => h.month === targetMonth) ?? null);
 
       const budgetMonthly =
         cat.budget?.current?.month === targetMonth
           ? cat.budget.current
-          : cat.budget?.histories?.find((h) => h.month === targetMonth) ?? null;
+          : (cat.budget?.histories?.find((h) => h.month === targetMonth) ?? null);
 
       const actual = spendMonthly?.amount ?? 0;
       const budgeted = budgetMonthly?.resolvedAmount ?? budgetMonthly?.amount ?? null;
@@ -171,7 +164,7 @@ export async function getSpendingByCategory(
 
     return result;
   } catch (err) {
-    console.warn(`[categories] Warning: ${(err as Error).message}`);
+    warn("categories", (err as Error).message);
     return [];
   }
 }
@@ -179,50 +172,51 @@ export async function getSpendingByCategory(
 function getCurrentMonth(): string {
   const now = new Date();
   const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const month = String(now.getMonth() + 1).padStart(2, "0");
   return `${year}-${month}`;
 }
 
 export function formatCategoriesTable(categories: Category[]): string {
-  if (categories.length === 0) return 'No categories found.';
+  if (categories.length === 0) return "No categories found.";
 
-  const lines: string[] = [`Categories (${categories.length}):`, ''];
+  const lines: string[] = [`Categories (${categories.length}):`, ""];
   const topLevel = categories.filter((c) => !c.parentId);
   const children: Record<string, Category[]> = {};
   for (const c of categories.filter((c) => c.parentId)) {
-    if (!children[c.parentId!]) children[c.parentId!] = [];
-    children[c.parentId!].push(c);
+    const pid = c.parentId as string;
+    if (!children[pid]) children[pid] = [];
+    children[pid].push(c);
   }
 
   for (const cat of topLevel) {
-    const excl = cat.isExcluded ? ' [excluded]' : '';
+    const excl = cat.isExcluded ? " [excluded]" : "";
     lines.push(`  ${cat.name}${excl}`);
     for (const child of children[cat.id] ?? []) {
-      const childExcl = child.isExcluded ? ' [excluded]' : '';
+      const childExcl = child.isExcluded ? " [excluded]" : "";
       lines.push(`    └ ${child.name}${childExcl}`);
     }
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 export function formatSpendingTable(spending: SpendingByCategory[]): string {
-  if (spending.length === 0) return 'No spending data found.';
+  if (spending.length === 0) return "No spending data found.";
 
   const sorted = [...spending].sort((a, b) => b.actual - a.actual);
-  const lines: string[] = [`Spending by Category (${spending[0]?.month ?? ''}):`, ''];
+  const lines: string[] = [`Spending by Category (${spending[0]?.month ?? ""}):`, ""];
 
   for (const s of sorted) {
     const actual = `$${s.actual.toFixed(2)}`;
-    const budget = s.budgeted !== null ? ` / $${s.budgeted.toFixed(2)}` : '';
+    const budget = s.budgeted !== null ? ` / $${s.budgeted.toFixed(2)}` : "";
     const remaining =
       s.remaining !== null
         ? s.remaining >= 0
           ? ` (${s.remaining.toFixed(2)} left)`
           : ` (OVER by $${Math.abs(s.remaining).toFixed(2)})`
-        : '';
+        : "";
     lines.push(`  ${s.categoryName}: ${actual}${budget}${remaining}`);
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
